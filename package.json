@@ -1,31 +1,40 @@
 {
-  "name": "waveform-render",
-  "displayName": "Waveform Render",
-  "description": "Draw timing diagram waveforms with WaveDrom inside VSCode",
+  "name": "waveform-renderSVA",
+  "displayName": "Waveform Render SVA",
+  "description": "Advanced timing diagram visualization with WaveDrom and automatic SystemVerilog Assertion (SVA) generation for hardware verification",
   "license": "MIT",
+  "author": {
+    "name": "MameMame777",
+    "url": "https://github.com/MameMame777"
+  },
   "keywords": [
     "timing",
     "diagram",
     "waveform",
     "wavedrom",
-    "WaveJSON"
+    "WaveJSON",
+    "SystemVerilog",
+    "SVA",
+    "assertions"
   ],
   "icon": "media/icon.png",
   "version": "0.27.0",
-  "publisher": "bmpenuelas",
+  "publisher": "MameMame777",
   "engines": {
     "vscode": "^1.65.0"
   },
   "categories": [
+    "Programming Languages",
+    "Visualization",
     "Other"
   ],
-  "homepage": "https://github.com/bmpenuelas/waveform-render-vscode",
+  "homepage": "https://github.com/MameMame777/waveform-render-sva",
   "bugs": {
-    "email": "bmpenuelas@gmail.com"
+    "url": "https://github.com/MameMame777/waveform-render-sva/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/bmpenuelas/waveform-render-vscode.git"
+    "url": "https://github.com/MameMame777/waveform-render-sva.git"
   },
   "activationEvents": [
     "onWebviewPanel:waveformRender"
@@ -36,28 +45,28 @@
       {
         "command": "waveformRender.start",
         "title": "Draw",
-        "category": "Waveform Render"
+        "category": "Waveform Render SVA"
       },
       {
         "command": "waveformRender.toggleLivePreview",
         "title": "Toggle Live Waveform Preview",
-        "category": "Waveform Render",
+        "category": "Waveform Render SVA",
         "icon": "$(pulse)"
       },
       {
         "command": "waveformRender.saveAsPng",
         "title": "Save as PNG",
-        "category": "Waveform Render"
+        "category": "Waveform Render SVA"
       },
       {
         "command": "waveformRender.saveAsSvg",
         "title": "Save as SVG",
-        "category": "Waveform Render"
+        "category": "Waveform Render SVA"
       },
       {
         "command": "waveformRender.generateSVA",
         "title": "Generate SVA",
-        "category": "Waveform Render"
+        "category": "Waveform Render SVA"
       }
     ],
     "menus": {
@@ -71,7 +80,7 @@
     },
     "configuration": {
       "type": "object",
-      "title": "Waveform Render Settings",
+      "title": "Waveform Render SVA Settings",
       "properties": {
         "waveformRender.closePanelOnDisable": {
           "type": "boolean",

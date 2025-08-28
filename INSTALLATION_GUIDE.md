@@ -7,13 +7,13 @@
 1. VS Code を開く
 2. コマンドパレット（`Ctrl+Shift+P`）を開く
 3. "Extensions: Install from VSIX..." を選択
-4. `waveform-render-0.27.0.vsix` ファイルを選択
+4. `waveform-renderSVA-0.27.0.vsix` ファイルを選択
 5. 拡張機能が自動的にインストールされます
 
 ### 2. コマンドラインからインストール
 
 ```bash
-code --install-extension waveform-render-0.27.0.vsix
+code --install-extension waveform-renderSVA-0.27.0.vsix
 ```
 
 ## 📋 機能概要
