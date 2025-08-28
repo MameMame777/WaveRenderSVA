@@ -539,14 +539,28 @@ class SVAGeneratorPanel {
       return svaCode + "// Error: No valid signal data found in JSON\n";
     }
 
-    // Extract configuration if available
-    const config = jsonData.config || {};
+    // Extract extended configuration if available (NEW)
+    const config = this._parseExtendedConfig(jsonData);
     const clockSignal = config.clock_signal || 'clk';
+    const resetSignal = config.reset_signal || 'rst_n';
+    const moduleName = config.module_name || 'assertion_module';
     const timeoutCycles = config.timeout_cycles || 10;
     
     // Signal normalization and validation with deduplication
     const { validSignals, warnings } = this._normalizeAndValidateSignals(jsonData.signal);
     const clockInfo = validSignals.find((s: any) => this._isClockSignal(s));
+    
+    // Add configuration info to output
+    if (config.has_extended_config) {
+      svaCode += `// Extended Configuration Detected:\n`;
+      svaCode += `// - Clock: ${clockSignal}, Reset: ${resetSignal}\n`;
+      svaCode += `// - Module: ${moduleName}\n`;
+      svaCode += `// - Timeout Cycles: ${timeoutCycles}\n`;
+      if (config.prohibition_patterns?.length > 0) {
+        svaCode += `// - Prohibition Patterns: ${config.prohibition_patterns.length} configured\n`;
+      }
+      svaCode += `\n`;
+    }
     
     // Add warnings to output
     if (warnings.length > 0) {
@@ -563,9 +577,9 @@ class SVAGeneratorPanel {
     svaCode += `// Protocol Analysis: ${protocolAnalysis.detectedProtocols.join(', ')}\n`;
     svaCode += `// Optimization: ${protocolAnalysis.optimizations.join(', ')}\n\n`;
     
-    svaCode += `module assertion_module (\n`;
+    svaCode += `module ${moduleName} (\n`;
     svaCode += `  input logic        ${clockSignal},\n`;
-    svaCode += `  input logic        rst_n`;
+    svaCode += `  input logic        ${resetSignal}`;
     
     // Add all non-clock signals as inputs with proper width detection
     validSignals.forEach((signal: any) => {
@@ -587,6 +601,24 @@ class SVAGeneratorPanel {
     return svaCode;
   }
 
+  private _parseExtendedConfig(jsonData: any): any {
+    const assertionConfig = jsonData.assertion_config || {};
+    const hasExtended = Object.keys(assertionConfig).length > 0;
+    
+    return {
+      has_extended_config: hasExtended,
+      clock_signal: assertionConfig.clock_signal || 'clk',
+      reset_signal: assertionConfig.reset_signal || 'rst_n',
+      module_name: assertionConfig.module_name || 'assertion_module',
+      timeout_cycles: assertionConfig.timeout_cycles || 10,
+      assertion_strength: assertionConfig.assertion_strength || {},
+      prohibition_patterns: assertionConfig.prohibition_patterns || [],
+      fixed_latency: assertionConfig.fixed_latency || [],
+      signal_change_rules: assertionConfig.signal_change_rules || [],
+      generation_options: assertionConfig.generation_options || {}
+    };
+  }
+
   private _analyzeProtocolPatterns(signals: any[]): any {
     const protocols: any = {
       detectedProtocols: [],
@@ -594,7 +626,8 @@ class SVAGeneratorPanel {
       signalGroups: {},
       dataSignals: [],
       controlSignals: [],
-      clockSignals: []
+      clockSignals: [],
+      allSignals: signals  // Add reference to all signals
     };
     
     // Group signals by type
@@ -649,7 +682,7 @@ class SVAGeneratorPanel {
   private _generateOptimizedAssertions(protocolAnalysis: any, clockSignal: string, timeoutCycles: number): string {
     let assertions = `  // === OPTIMIZED ASSERTION GENERATION ===\n\n`;
     
-    const { signalGroups, dataSignals, optimizations } = protocolAnalysis;
+    const { signalGroups, dataSignals, optimizations, allSignals } = protocolAnalysis;
     
     // Generate unified data assertions first (avoid duplication)
     if (dataSignals.length > 0) {
@@ -664,6 +697,15 @@ class SVAGeneratorPanel {
     if (signalGroups.validReady) {
       assertions += this._generateEfficientValidReadyProtocol(signalGroups.validReady, clockSignal);
     }
+    
+    // Generate prohibition pattern assertions (NEW)
+    assertions += this._generateProhibitionPatterns(allSignals, clockSignal);
+    
+    // Generate signal change detection assertions (NEW)
+    assertions += this._generateSignalChangeAssertions(allSignals, clockSignal);
+    
+    // Generate fixed latency assertions (NEW)
+    assertions += this._generateFixedLatencyAssertions(allSignals, clockSignal);
     
     // Add optimization notes
     if (optimizations.length > 0) {
@@ -744,6 +786,292 @@ class SVAGeneratorPanel {
     assertions += `  ${readyName}_deassert_rule_a: assert property(${readyName}_deassert_rule_p);\n\n`;
     
     return assertions;
+  }
+
+  private _generateProhibitionPatterns(signals: any[], clockSignal: string): string {
+    let assertions = `  // === PROHIBITION PATTERN ASSERTIONS ===\n`;
+    
+    // Look for potential prohibition patterns
+    const fullSignals = signals.filter(s => s.normalizedName.includes('full'));
+    const writeSignals = signals.filter(s => s.normalizedName.includes('write') || s.normalizedName.includes('wen'));
+    const emptySignals = signals.filter(s => s.normalizedName.includes('empty'));
+    const readSignals = signals.filter(s => s.normalizedName.includes('read') || s.normalizedName.includes('ren'));
+    const busySignals = signals.filter(s => s.normalizedName.includes('busy'));
+    const enableSignals = signals.filter(s => s.normalizedName.includes('enable') || s.normalizedName.includes('en'));
+    
+    // FIFO overflow prevention
+    fullSignals.forEach(fullSignal => {
+      writeSignals.forEach(writeSignal => {
+        const fullName = fullSignal.normalizedName;
+        const writeName = writeSignal.normalizedName;
+        
+        assertions += `  property no_${fullName}_${writeName}_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        assertions += `    @(posedge ${clockSignal}) not (${fullName} && ${writeName});\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  no_${fullName}_${writeName}_a: assert property(no_${fullName}_${writeName}_p)\n`;
+        assertions += `    else $error("FIFO overflow: write attempted when full");\n\n`;
+      });
+    });
+    
+    // FIFO underflow prevention
+    emptySignals.forEach(emptySignal => {
+      readSignals.forEach(readSignal => {
+        const emptyName = emptySignal.normalizedName;
+        const readName = readSignal.normalizedName;
+        
+        assertions += `  property no_${emptyName}_${readName}_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        assertions += `    @(posedge ${clockSignal}) not (${emptyName} && ${readName});\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  no_${emptyName}_${readName}_a: assert property(no_${emptyName}_${readName}_p)\n`;
+        assertions += `    else $error("FIFO underflow: read attempted when empty");\n\n`;
+      });
+    });
+    
+    // Busy signal conflicts
+    busySignals.forEach(busySignal => {
+      enableSignals.forEach(enableSignal => {
+        const busyName = busySignal.normalizedName;
+        const enableName = enableSignal.normalizedName;
+        
+        assertions += `  property no_${busyName}_${enableName}_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        assertions += `    @(posedge ${clockSignal}) not (${busyName} && ${enableName});\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  no_${busyName}_${enableName}_a: assert property(no_${busyName}_${enableName}_p)\n`;
+        assertions += `    else $error("Operation attempted while busy");\n\n`;
+      });
+    });
+    
+    if (assertions === `  // === PROHIBITION PATTERN ASSERTIONS ===\n`) {
+      assertions += `  // No prohibition patterns detected\n\n`;
+    }
+    
+    return assertions;
+  }
+
+  private _generateSignalChangeAssertions(signals: any[], clockSignal: string): string {
+    let assertions = `  // === SIGNAL CHANGE DETECTION ASSERTIONS ===\n`;
+    
+    const enableSignals = signals.filter(s => 
+      s.normalizedName.includes('enable') || 
+      s.normalizedName.includes('en') ||
+      s.normalizedName.includes('trigger')
+    );
+    const outputSignals = signals.filter(s => 
+      s.normalizedName.includes('out') || 
+      s.normalizedName.includes('output') ||
+      s.normalizedName.includes('result')
+    );
+    
+    // Generate enable -> output change assertions
+    enableSignals.forEach(enableSignal => {
+      outputSignals.forEach(outputSignal => {
+        const enableName = enableSignal.normalizedName;
+        const outputName = outputSignal.normalizedName;
+        
+        if (enableName !== outputName) {
+          assertions += `  property ${enableName}_causes_${outputName}_change_p;\n`;
+          assertions += `    disable iff (!rst_n)\n`;
+          assertions += `    @(posedge ${clockSignal}) $rose(${enableName}) |-> $changed(${outputName});\n`;
+          assertions += `  endproperty\n`;
+          assertions += `  ${enableName}_causes_${outputName}_change_a: assert property(${enableName}_causes_${outputName}_change_p)\n`;
+          assertions += `    else $error("${outputName} did not change when ${enableName} asserted");\n\n`;
+        }
+      });
+    });
+    
+    // Generate edge detection for control signals
+    const controlSignals = signals.filter(s => 
+      !this._isClockSignal(s) && 
+      !s.normalizedName.includes('data') && 
+      !s.normalizedName.includes('addr')
+    );
+    
+    controlSignals.forEach(signal => {
+      const signalName = signal.normalizedName;
+      
+      // Generate $rose() and $fell() monitoring
+      assertions += `  // Edge monitoring for ${signalName}\n`;
+      assertions += `  property ${signalName}_edge_stability_p;\n`;
+      assertions += `    disable iff (!rst_n)\n`;
+      assertions += `    @(posedge ${clockSignal}) $rose(${signalName}) |-> ##1 ${signalName};\n`;
+      assertions += `  endproperty\n`;
+      assertions += `  ${signalName}_edge_stability_a: assert property(${signalName}_edge_stability_p)\n`;
+      assertions += `    else $error("${signalName} fell immediately after rising");\n\n`;
+    });
+    
+    if (assertions === `  // === SIGNAL CHANGE DETECTION ASSERTIONS ===\n`) {
+      assertions += `  // No signal change patterns detected\n\n`;
+    }
+    
+    return assertions;
+  }
+
+  private _generateFixedLatencyAssertions(signals: any[], clockSignal: string): string {
+    let assertions = `  // === FIXED LATENCY ASSERTIONS ===\n`;
+    
+    // Analyze wave patterns for fixed latency relationships
+    const latencyPatterns = this._detectFixedLatencyPatterns(signals);
+    
+    latencyPatterns.forEach(pattern => {
+      const { trigger, response, type } = pattern;
+      
+      if (type === 'fixed') {
+        const { cycles, confidence } = pattern;
+        assertions += `  // Fixed latency detected: ${cycles} cycles (confidence: ${(confidence * 100).toFixed(0)}%)\n`;
+        assertions += `  property ${trigger}_to_${response}_fixed_latency_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        assertions += `    @(posedge ${clockSignal}) $rose(${trigger}) |-> ##${cycles} $rose(${response});\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  ${trigger}_to_${response}_fixed_latency_a: assert property(${trigger}_to_${response}_fixed_latency_p)\n`;
+        assertions += `    else $error("${response} did not respond exactly ${cycles} cycles after ${trigger}");\n\n`;
+      } else if (type === 'variable') {
+        const { minCycles, maxCycles, confidence } = pattern;
+        assertions += `  // Variable latency detected: ${minCycles}-${maxCycles} cycles (confidence: ${(confidence * 100).toFixed(0)}%)\n`;
+        assertions += `  property ${trigger}_to_${response}_variable_latency_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        assertions += `    @(posedge ${clockSignal}) $rose(${trigger}) |-> ##[${minCycles}:${maxCycles}] $rose(${response});\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  ${trigger}_to_${response}_variable_latency_a: assert property(${trigger}_to_${response}_variable_latency_p)\n`;
+        assertions += `    else $error("${response} did not respond within ${minCycles}-${maxCycles} cycles after ${trigger}");\n\n`;
+      }
+    });
+    
+    if (assertions === `  // === FIXED LATENCY ASSERTIONS ===\n`) {
+      assertions += `  // No timing patterns detected from waveform analysis\n\n`;
+    }
+    
+    return assertions;
+  }
+
+  private _detectFixedLatencyPatterns(signals: any[]): any[] {
+    const patterns: any[] = [];
+    
+    // Identify potential trigger and response signals
+    const triggerSignals = signals.filter(s => 
+      s.normalizedName.includes('request') || 
+      s.normalizedName.includes('start') ||
+      s.normalizedName.includes('trigger') ||
+      s.normalizedName.includes('issue')
+    );
+    
+    const responseSignals = signals.filter(s => 
+      s.normalizedName.includes('acknowledge') || 
+      s.normalizedName.includes('done') ||
+      s.normalizedName.includes('complete') ||
+      s.normalizedName.includes('commit')
+    );
+    
+    triggerSignals.forEach(trigger => {
+      responseSignals.forEach(response => {
+        if (trigger.normalizedName !== response.normalizedName) {
+          // Analyze actual wave patterns to detect timing
+          const detectedLatency = this._analyzeWaveformTiming(trigger, response);
+          
+          if (detectedLatency.isFixed) {
+            patterns.push({
+              trigger: trigger.normalizedName,
+              response: response.normalizedName,
+              cycles: detectedLatency.cycles,
+              confidence: detectedLatency.confidence,
+              type: 'fixed'
+            });
+          } else if (detectedLatency.hasPattern) {
+            // Variable latency detected
+            patterns.push({
+              trigger: trigger.normalizedName,
+              response: response.normalizedName,
+              minCycles: detectedLatency.minCycles,
+              maxCycles: detectedLatency.maxCycles,
+              confidence: detectedLatency.confidence,
+              type: 'variable'
+            });
+          }
+        }
+      });
+    });
+    
+    return patterns;
+  }
+
+  private _analyzeWaveformTiming(triggerSignal: any, responseSignal: any): any {
+    const triggerWave = triggerSignal.wave;
+    const responseWave = responseSignal.wave;
+    
+    if (!triggerWave || !responseWave) {
+      return { isFixed: false, hasPattern: false, confidence: 0 };
+    }
+    
+    // Find rising edges in both signals
+    const triggerEdges = this._findRisingEdges(triggerWave);
+    const responseEdges = this._findRisingEdges(responseWave);
+    
+    if (triggerEdges.length === 0 || responseEdges.length === 0) {
+      return { isFixed: false, hasPattern: false, confidence: 0 };
+    }
+    
+    // Calculate latencies between trigger and response
+    const latencies: number[] = [];
+    
+    triggerEdges.forEach(triggerPos => {
+      // Find the next response edge after this trigger
+      const nextResponseEdge = responseEdges.find(respPos => respPos > triggerPos);
+      if (nextResponseEdge !== undefined) {
+        latencies.push(nextResponseEdge - triggerPos);
+      }
+    });
+    
+    if (latencies.length === 0) {
+      return { isFixed: false, hasPattern: false, confidence: 0 };
+    }
+    
+    // Check if all latencies are the same (fixed latency)
+    const uniqueLatencies = [...new Set(latencies)];
+    
+    if (uniqueLatencies.length === 1) {
+      return {
+        isFixed: true,
+        cycles: uniqueLatencies[0],
+        confidence: 0.9,
+        hasPattern: true
+      };
+    } else {
+      // Variable latency
+      return {
+        isFixed: false,
+        hasPattern: true,
+        minCycles: Math.min(...latencies),
+        maxCycles: Math.max(...latencies),
+        confidence: 0.7
+      };
+    }
+  }
+
+  private _findRisingEdges(wave: string): number[] {
+    const edges: number[] = [];
+    
+    for (let i = 1; i < wave.length; i++) {
+      const prev = wave[i - 1];
+      const curr = wave[i];
+      
+      // Rising edge: 0->1, l->1, l->h, 0->h, etc.
+      if ((prev === '0' || prev === 'l') && (curr === '1' || curr === 'h')) {
+        edges.push(i);
+      }
+      // Also consider transitions from '.' (continue previous) where previous was low
+      else if (prev === '0' && curr === '.') {
+        // Look ahead to see if this becomes a rising edge
+        let j = i;
+        while (j < wave.length && wave[j] === '.') j++;
+        if (j < wave.length && (wave[j] === '1' || wave[j] === 'h')) {
+          edges.push(j);
+        }
+      }
+    }
+    
+    return edges;
   }
 
   private _cleanJsonContent(content: string): string {

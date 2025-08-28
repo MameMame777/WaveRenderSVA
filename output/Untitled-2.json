@@ -5,7 +5,6 @@
     {"name": "acknowledge", "wave": "0..10.."},
     {"name": "data", "wave": "x3..x..", "data": ["0x42"]},
     {"name": "valid", "wave": "0.1.0.."},
-    {"name": "ready", "wave": "1....0."},
-
+    {"name": "ready", "wave": "1....0."}
   ]
 }

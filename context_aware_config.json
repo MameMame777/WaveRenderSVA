@@ -1,0 +1,26 @@
+{
+  "design_context": {
+    "domain": "memory_interface",
+    "performance_class": "high_speed",
+    "safety_level": "automotive",
+    "target_technology": "fpga"
+  },
+  "signal": [
+    {
+      "name": "mem_req",
+      "wave": "01..0..",
+      "context_hints": {
+        "latency_critical": true,
+        "safety_critical": true,
+        "bandwidth_sensitive": false
+      }
+    }
+  ],
+  "assertion_templates": {
+    "memory_interface": {
+      "required_checks": ["address_alignment", "burst_boundaries"],
+      "timing_constraints": ["setup_hold", "access_time"],
+      "safety_checks": ["ecc_protection", "timeout_detection"]
+    }
+  }
+}
