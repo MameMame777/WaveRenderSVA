@@ -16,10 +16,11 @@ example_*.json
 extended_example.json
 test_*.json
 
-# Documentation files (keep README.md)
+# Documentation files (keep main READMEs)
 doc/**
 *.md
 !README.md
+!README_ENHANCED.md
 
 # Build files
 .vscode/**
@@ -29,6 +30,10 @@ doc/**
 # Node modules and output
 node_modules/**
 out/test/**
+
+# Media files (except demos)
+media/icon.png
+media/icon.xcf
 
 # Others
 *.vsix

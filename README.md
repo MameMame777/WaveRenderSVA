@@ -1,14 +1,17 @@
-# WaveRender SVA
+# Waveform Render SVA Enhanced
 
 Render waveforms with [WaveDrom](https://github.com/wavedrom/wavedrom) inside [VSCode](https://code.visualstudio.com/) and generate SystemVerilog Assertions (SVA) from JSON waveform descriptions.
 
-**Features:**
-- 🌊 Render timing diagrams from WaveDrom JSON
-- ⚡ Generate SystemVerilog Assertions automatically
-- 💾 Save generated assertions as .sv files
-- 🔄 Live preview mode for waveforms
+## 🙏 Attribution
 
-This extension is forked from [waveform-render-vscode](https://github.com/bmpenuelas/waveform-render-vscode) with additional SystemVerilog assertion generation capabilities.
+This project is a **fork and enhancement** of the excellent [waveform-render-vscode](https://github.com/bmpenuelas/waveform-render-vscode) by **Borja Penuelas (bmpenuelas)**. We extend our gratitude for the solid foundation that made these enhancements possible.
+
+**Features:**
+- 🌊 Render timing diagrams from WaveDrom JSON *(original feature)*
+- ⚡ Generate SystemVerilog Assertions automatically *(enhanced)*
+- 💾 Save generated assertions as .sv files *(new)*
+- 🔄 Live preview mode for waveforms *(original feature)*
+- ✨ Advanced SVA patterns: variable latency, sequences, prohibitions *(new)*
 
 ## Usage
 
