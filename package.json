@@ -1,12 +1,19 @@
 {
-  "name": "waveform-renderSVA",
-  "displayName": "Waveform Render SVA",
-  "description": "Advanced timing diagram visualization with WaveDrom and automatic SystemVerilog Assertion (SVA) generation for hardware verification",
+  "name": "waveform-render-sva-enhanced",
+  "displayName": "Waveform Render SVA Enhanced",
+  "description": "Advanced timing diagram visualization with WaveDrom and automatic SystemVerilog Assertion (SVA) generation for hardware verification. Fork of waveform-render by bmpenuelas with enhanced SVA capabilities.",
   "license": "MIT",
   "author": {
     "name": "MameMame777",
     "url": "https://github.com/MameMame777"
   },
+  "contributors": [
+    {
+      "name": "bmpenuelas (Original Author)",
+      "email": "bmpenuelas@gmail.com",
+      "url": "https://github.com/bmpenuelas/waveform-render-vscode"
+    }
+  ],
   "keywords": [
     "timing",
     "diagram",

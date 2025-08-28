@@ -1,19 +1,26 @@
-# WaveRender SVA 拡張機能 インストール手順
+# Waveform Render SVA Enhanced - インストール手順
 
-## 🚀 インストール方法
+## � 重要なお知らせ
+
+この拡張機能は、**bmpenuelas** さんが開発した優れた [Waveform Render](https://github.com/bmpenuelas/waveform-render-vscode) の**フォーク版**です。オリジナル作者への敬意を表し、SystemVerilogアサーション機能を追加した拡張版として開発されています。
+
+**オリジナル作者**: [bmpenuelas](https://github.com/bmpenuelas)  
+**オリジナルリポジトリ**: https://github.com/bmpenuelas/waveform-render-vscode
+
+## �🚀 インストール方法
 
 ### 1. VSIXファイルからインストール
 
 1. VS Code を開く
 2. コマンドパレット（`Ctrl+Shift+P`）を開く
 3. "Extensions: Install from VSIX..." を選択
-4. `waveform-renderSVA-0.27.0.vsix` ファイルを選択
+4. `waveform-render-sva-enhanced-0.27.0.vsix` ファイルを選択
 5. 拡張機能が自動的にインストールされます
 
 ### 2. コマンドラインからインストール
 
 ```bash
-code --install-extension waveform-renderSVA-0.27.0.vsix
+code --install-extension waveform-render-sva-enhanced-0.27.0.vsix
 ```
 
 ## 📋 機能概要
