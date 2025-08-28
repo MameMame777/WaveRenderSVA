@@ -1,0 +1,36 @@
+# Source files
+src/**
+*.ts
+tsconfig.json
+tslint.json
+
+# Development and test files
+test/**
+*.test.*
+*.spec.*
+test_*.js
+advice2_*.json
+context_aware_config.json
+enhanced_*.json
+example_*.json
+extended_example.json
+test_*.json
+
+# Documentation files (keep README.md)
+doc/**
+*.md
+!README.md
+
+# Build files
+.vscode/**
+.gitignore
+.github/**
+
+# Node modules and output
+node_modules/**
+out/test/**
+
+# Others
+*.vsix
+.DS_Store
+Thumbs.db

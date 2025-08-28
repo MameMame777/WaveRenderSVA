@@ -1,0 +1,22 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.....|..."},
+    {"name": "fifo_full", "wave": "0....1|..."},
+    {"name": "write_enable", "wave": "0.1.0.|..."}
+  ],
+  "extended_config": {
+    "module_name": "advice2_fifo_overflow_prevention",
+    "signals": {
+      "clk": {"type": "clock", "width": 1},
+      "fifo_full": {"type": "control", "width": 1, "role": "status"},
+      "write_enable": {"type": "control", "width": 1, "role": "enable"}
+    },
+    "conflict_signals": [
+      {
+        "signal1": "fifo_full",
+        "signal2": "write_enable",
+        "description": "fifo_full が 1 のときに write_enable が 1 になってはいけない"
+      }
+    ]
+  }
+}

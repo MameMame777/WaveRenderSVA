@@ -1,0 +1,127 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "p.....|...",
+      "type": "clock",
+      "period": 2
+    },
+    {
+      "name": "Data",
+      "wave": "x.345x|=.x",
+      "data": ["head", "body", "tail", "data"],
+      "type": "data",
+      "width": 8,
+      "encoding": "custom",
+      "timing": {
+        "setup_time": 1,
+        "hold_time": 1,
+        "valid_during": ["request_active"]
+      },
+      "constraints": {
+        "no_x_during": ["valid_transaction"],
+        "stable_during": ["handshake"]
+      }
+    },
+    {
+      "name": "Request",
+      "wave": "0.1..0|1.0",
+      "type": "control",
+      "role": "handshake_initiator",
+      "protocol": "request_acknowledge",
+      "timing": {
+        "min_pulse_width": 2,
+        "max_duration": 10
+      }
+    },
+    {},
+    {
+      "name": "Acknowledge",
+      "wave": "1.....|01.",
+      "type": "control",
+      "role": "handshake_response",
+      "protocol": "request_acknowledge",
+      "timing": {
+        "response_latency": {
+          "min": 4,
+          "max": 8,
+          "typical": 6
+        }
+      }
+    },
+    {
+      "name": "Valid",
+      "wave": "0..1.0|.1.",
+      "type": "control",
+      "role": "data_qualifier",
+      "protocol": "valid_ready",
+      "width": 1
+    },
+    {
+      "name": "Ready",
+      "wave": "1.....|..0",
+      "type": "control",
+      "role": "flow_control",
+      "protocol": "valid_ready"
+    }
+  ],
+  "protocols": {
+    "request_acknowledge": {
+      "description": "Simple request-acknowledge handshake",
+      "signals": ["Request", "Acknowledge"],
+      "timing_constraints": {
+        "timeout": 15,
+        "min_latency": 1,
+        "max_latency": 10
+      },
+      "rules": [
+        "acknowledge_must_follow_request",
+        "no_acknowledge_without_request",
+        "data_stable_during_handshake"
+      ]
+    },
+    "valid_ready": {
+      "description": "AXI4-Stream like flow control",
+      "signals": ["Valid", "Ready"],
+      "rules": [
+        "valid_stable_until_ready",
+        "data_stable_with_valid",
+        "no_bubble_cycles"
+      ]
+    }
+  },
+  "timing_relationships": [
+    {
+      "trigger": "Request",
+      "response": "Acknowledge",
+      "type": "fixed_latency",
+      "cycles": 6,
+      "confidence": 0.9
+    },
+    {
+      "condition": "Valid && Ready",
+      "action": "data_transfer",
+      "timing": "same_cycle"
+    }
+  ],
+  "assertion_config": {
+    "clock_signal": "clk",
+    "reset_signal": "rst_n",
+    "module_name": "enhanced_assertion_module",
+    "generation_options": {
+      "enable_protocol_assertions": true,
+      "enable_timing_assertions": true,
+      "enable_data_integrity": true,
+      "enable_coverage": true,
+      "assertion_strength": "strong"
+    },
+    "custom_properties": [
+      {
+        "name": "data_encoding_check",
+        "description": "Verify data values match expected encoding",
+        "trigger": "valid_data_cycle",
+        "condition": "Data inside {[8'h30:8'h39], [8'h41:8'h5A]}"
+      }
+    ]
+  }
+}

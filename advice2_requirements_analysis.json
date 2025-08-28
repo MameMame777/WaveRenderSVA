@@ -1,0 +1,128 @@
+{
+  "requirements": [
+    {
+      "id": 1,
+      "name": "ハンドシェイク信号の検証",
+      "description": "req が立ったら、3 サイクル以内に ack が 1 になる",
+      "pattern": "req |-> ##[1:3] ack",
+      "currentSupport": "partial",
+      "needsEnhancement": true
+    },
+    {
+      "id": 2,
+      "name": "リセット動作の確認",
+      "description": "reset がアサートされたら、次サイクルで ready=0、その後 busy=0",
+      "pattern": "reset |-> ##1 (!ready && !busy)",
+      "currentSupport": "basic",
+      "needsEnhancement": true
+    },
+    {
+      "id": 3,
+      "name": "FIFO のオーバーフロー防止",
+      "description": "fifo_full が 1 のときに write_enable が 1 になってはいけない",
+      "pattern": "not (fifo_full && write_enable)",
+      "currentSupport": "none",
+      "needsEnhancement": true
+    },
+    {
+      "id": 4,
+      "name": "プロトコル・シーケンスの順序確認",
+      "description": "start → data_valid → done の順番で信号が出る",
+      "pattern": "start |-> ##[1:5] data_valid ##[1:5] done",
+      "currentSupport": "partial",
+      "needsEnhancement": true
+    },
+    {
+      "id": 5,
+      "name": "クロック同期の検証",
+      "description": "clk_enable が 1 なら clk_out もトグルする",
+      "pattern": "clk_enable |-> $changed(clk_out)",
+      "currentSupport": "none",
+      "needsEnhancement": true
+    },
+    {
+      "id": 6,
+      "name": "レイテンシ制約",
+      "description": "命令 issue から正確に 4 サイクル後に commit が出る",
+      "pattern": "issue |-> ##4 commit",
+      "currentSupport": "good",
+      "needsEnhancement": false
+    }
+  ],
+  "missingFeatures": [
+    {
+      "feature": "可変範囲レイテンシ（##[M:N]）",
+      "description": "1〜3サイクルのような範囲指定",
+      "priority": "高",
+      "examples": [
+        "##[1:3] ack",
+        "##[1:5] data_valid"
+      ]
+    },
+    {
+      "feature": "禁止条件アサーション",
+      "description": "not (condition) パターン",
+      "priority": "高",
+      "examples": [
+        "not (fifo_full && write_enable)"
+      ]
+    },
+    {
+      "feature": "複合シーケンス",
+      "description": "A → B → C のようなチェーンアサーション",
+      "priority": "中",
+      "examples": [
+        "start |-> ##[1:5] data_valid ##[1:5] done"
+      ]
+    },
+    {
+      "feature": "信号変化検出",
+      "description": "$changed(), $rose(), $fell() の活用",
+      "priority": "中",
+      "examples": [
+        "clk_enable |-> $changed(clk_out)"
+      ]
+    },
+    {
+      "feature": "条件付きリセット動作",
+      "description": "リセット時の複数信号同時制御",
+      "priority": "低",
+      "examples": [
+        "reset |-> ##1 (!ready && !busy)"
+      ]
+    }
+  ],
+  "proposals": [
+    {
+      "title": "可変レイテンシアサーション生成",
+      "description": "##[min:max] 形式での範囲指定レイテンシ",
+      "implementation": "JSON設定で min/max latency 指定",
+      "benefit": "より柔軟なタイミング制約"
+    },
+    {
+      "title": "禁止条件アサーション",
+      "description": "同時に1になってはいけない信号の検出",
+      "implementation": "conflict_signals 設定追加",
+      "benefit": "バス競合、FIFO溢れ等の防止"
+    },
+    {
+      "title": "シーケンシャルプロトコル",
+      "description": "A→B→C の順序制約アサーション",
+      "implementation": "sequence_chain 設定追加",
+      "benefit": "プロトコル順序の自動検証"
+    },
+    {
+      "title": "信号変化監視",
+      "description": "$changed, $rose, $fell の自動生成",
+      "implementation": "edge_detection 設定追加",
+      "benefit": "クロック同期、状態変化の検証"
+    }
+  ],
+  "overallAssessment": {
+    "totalRequirements": 6,
+    "wellSupported": 1,
+    "partiallySupported": 2,
+    "needsWork": 5,
+    "overallScore": 36.7
+  }
+}

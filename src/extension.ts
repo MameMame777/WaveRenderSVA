@@ -427,6 +427,7 @@ class SVAGeneratorPanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionPath: string;
   private _disposables: vscode.Disposable[] = [];
+  private _currentConfig: any = null;  // Store current configuration
 
   public static createOrShow(extensionPath: string) {
     const activeEditor = vscode.window.activeTextEditor;
@@ -530,13 +531,29 @@ class SVAGeneratorPanel {
   }
 
   private _generateSVAFromJSON(jsonData: any): string {
-    // Convert WaveDrom JSON to SystemVerilog Assertions
+    // Convert WaveDrom JSON to SystemVerilog Assertions with enhanced analysis
     let svaCode = `// SystemVerilog Assertions generated from WaveDrom JSON\n`;
     svaCode += `// Generated on ${new Date().toISOString()}\n`;
-    svaCode += `// Based on industry best practices and expert recommendations\n\n`;
+    svaCode += `// Enhanced with improved waveform analysis and timing accuracy\n\n`;
     
     if (!jsonData.signal || !Array.isArray(jsonData.signal)) {
       return svaCode + "// Error: No valid signal data found in JSON\n";
+    }
+
+    // Perform detailed waveform analysis for better assertions
+    const waveformDetails = this._analyzeWaveformDetails(jsonData.signal);
+    
+    // Add waveform analysis comments
+    if (waveformDetails.totalSignals > 0) {
+      svaCode += `// WAVEFORM ANALYSIS SUMMARY:\n`;
+      svaCode += `// - Total signals analyzed: ${waveformDetails.totalSignals}\n`;
+      svaCode += `// - Data signals: ${waveformDetails.dataSignals}\n`;
+      svaCode += `// - Control signals: ${waveformDetails.controlSignals}\n`;
+      svaCode += `// - Clock signals: ${waveformDetails.clockSignals}\n`;
+      if (waveformDetails.detectedDataWidths.length > 0) {
+        svaCode += `// - Detected data widths: ${waveformDetails.detectedDataWidths.join(', ')} bits\n`;
+      }
+      svaCode += `\n`;
     }
 
     // Extract extended configuration if available (NEW)
@@ -558,6 +575,12 @@ class SVAGeneratorPanel {
       svaCode += `// - Timeout Cycles: ${timeoutCycles}\n`;
       if (config.prohibition_patterns?.length > 0) {
         svaCode += `// - Prohibition Patterns: ${config.prohibition_patterns.length} configured\n`;
+      }
+      if (config.has_protocol_definitions) {
+        svaCode += `// - Protocol Definitions: ${Object.keys(config.protocols).join(', ')}\n`;
+      }
+      if (config.has_timing_definitions) {
+        svaCode += `// - Timing Relationships: ${config.timing_relationships.length} defined\n`;
       }
       svaCode += `\n`;
     }
@@ -594,7 +617,7 @@ class SVAGeneratorPanel {
     svaCode += `\n);\n\n`;
     
     // Generate efficient, non-redundant assertions based on protocol analysis
-    svaCode += this._generateOptimizedAssertions(protocolAnalysis, clockSignal, timeoutCycles);
+    svaCode += this._generateOptimizedAssertions(protocolAnalysis, clockSignal, timeoutCycles, config);
 
     svaCode += `endmodule\n`;
     
@@ -604,6 +627,12 @@ class SVAGeneratorPanel {
   private _parseExtendedConfig(jsonData: any): any {
     const assertionConfig = jsonData.assertion_config || {};
     const hasExtended = Object.keys(assertionConfig).length > 0;
+    
+    // Parse protocol definitions
+    const protocols = jsonData.protocols || {};
+    
+    // Parse timing relationships
+    const timingRelationships = jsonData.timing_relationships || [];
     
     return {
       has_extended_config: hasExtended,
@@ -615,7 +644,14 @@ class SVAGeneratorPanel {
       prohibition_patterns: assertionConfig.prohibition_patterns || [],
       fixed_latency: assertionConfig.fixed_latency || [],
       signal_change_rules: assertionConfig.signal_change_rules || [],
-      generation_options: assertionConfig.generation_options || {}
+      generation_options: assertionConfig.generation_options || {},
+      
+      // Extended features
+      protocols: protocols,
+      timing_relationships: timingRelationships,
+      custom_properties: assertionConfig.custom_properties || [],
+      has_protocol_definitions: Object.keys(protocols).length > 0,
+      has_timing_definitions: timingRelationships.length > 0
     };
   }
 
@@ -627,33 +663,43 @@ class SVAGeneratorPanel {
       dataSignals: [],
       controlSignals: [],
       clockSignals: [],
-      allSignals: signals  // Add reference to all signals
+      allSignals: signals,  // Add reference to all signals
+      explicitProtocols: {}  // For JSON-defined protocols
     };
     
-    // Group signals by type
+    // Group signals by type (enhanced with explicit types)
     signals.forEach(signal => {
-      const name = signal.normalizedName;
+      const name = signal.normalizedName || signal.name;
+      const signalType = signal.type || 'unknown';
       
-      if (this._isClockSignal(signal)) {
+      if (this._isClockSignal(signal) || signalType === 'clock') {
         protocols.clockSignals.push(signal);
-      } else if (name.includes('data') || name.includes('addr')) {
+      } else if (this._isDataSignal(signal) || signalType === 'data') {
         protocols.dataSignals.push(signal);
       } else {
         protocols.controlSignals.push(signal);
       }
+      
+      // Group by explicit protocol assignment
+      if (signal.protocol) {
+        if (!protocols.explicitProtocols[signal.protocol]) {
+          protocols.explicitProtocols[signal.protocol] = [];
+        }
+        protocols.explicitProtocols[signal.protocol].push(signal);
+      }
     });
     
-    // Detect protocol patterns
-    const hasRequest = signals.some(s => s.normalizedName.includes('request') || s.normalizedName.includes('req'));
-    const hasAck = signals.some(s => s.normalizedName.includes('acknowledge') || s.normalizedName.includes('ack'));
-    const hasValid = signals.some(s => s.normalizedName.includes('valid'));
-    const hasReady = signals.some(s => s.normalizedName.includes('ready'));
+    // Detect protocol patterns (enhanced with explicit definitions)
+    const hasRequest = signals.some(s => s.normalizedName?.includes('request') || s.normalizedName?.includes('req') || s.role === 'handshake_initiator');
+    const hasAck = signals.some(s => s.normalizedName?.includes('acknowledge') || s.normalizedName?.includes('ack') || s.role === 'handshake_response');
+    const hasValid = signals.some(s => s.normalizedName?.includes('valid') || s.role === 'data_qualifier');
+    const hasReady = signals.some(s => s.normalizedName?.includes('ready') || s.role === 'flow_control');
     
     if (hasRequest && hasAck) {
       protocols.detectedProtocols.push('Request-Acknowledge');
       protocols.signalGroups.reqAck = {
-        request: signals.find(s => s.normalizedName.includes('request') || s.normalizedName.includes('req')),
-        acknowledge: signals.find(s => s.normalizedName.includes('acknowledge') || s.normalizedName.includes('ack')),
+        request: signals.find(s => s.normalizedName?.includes('request') || s.normalizedName?.includes('req') || s.role === 'handshake_initiator'),
+        acknowledge: signals.find(s => s.normalizedName?.includes('acknowledge') || s.normalizedName?.includes('ack') || s.role === 'handshake_response'),
         data: protocols.dataSignals
       };
     }
@@ -661,8 +707,8 @@ class SVAGeneratorPanel {
     if (hasValid && hasReady) {
       protocols.detectedProtocols.push('Valid-Ready');
       protocols.signalGroups.validReady = {
-        valid: signals.find(s => s.normalizedName.includes('valid')),
-        ready: signals.find(s => s.normalizedName.includes('ready')),
+        valid: signals.find(s => s.normalizedName?.includes('valid') || s.role === 'data_qualifier'),
+        ready: signals.find(s => s.normalizedName?.includes('ready') || s.role === 'flow_control'),
         data: protocols.dataSignals
       };
     }
@@ -676,10 +722,18 @@ class SVAGeneratorPanel {
       protocols.optimizations.push('Multi-protocol - shared data stability checks');
     }
     
+    // Add explicit protocol optimizations
+    if (Object.keys(protocols.explicitProtocols).length > 0) {
+      protocols.optimizations.push('Explicit protocol definitions - enhanced accuracy');
+    }
+    
     return protocols;
   }
 
-  private _generateOptimizedAssertions(protocolAnalysis: any, clockSignal: string, timeoutCycles: number): string {
+  private _generateOptimizedAssertions(protocolAnalysis: any, clockSignal: string, timeoutCycles: number, config?: any): string {
+    // Store config for use in other methods
+    this._currentConfig = config;
+    
     let assertions = `  // === OPTIMIZED ASSERTION GENERATION ===\n\n`;
     
     const { signalGroups, dataSignals, optimizations, allSignals } = protocolAnalysis;
@@ -699,13 +753,25 @@ class SVAGeneratorPanel {
     }
     
     // Generate prohibition pattern assertions (NEW)
-    assertions += this._generateProhibitionPatterns(allSignals, clockSignal);
+    assertions += this._generateProhibitionPatterns(allSignals, clockSignal, config);
     
     // Generate signal change detection assertions (NEW)
-    assertions += this._generateSignalChangeAssertions(allSignals, clockSignal);
+    assertions += this._generateSignalChangeAssertions(allSignals, clockSignal, config);
+    
+    // Generate reset behavior assertions (ADVICE2 REQUIREMENT)
+    assertions += this._generateResetBehaviorAssertions(allSignals, clockSignal, config);
+    
+    // Generate variable latency assertions (ADVICE2 REQUIREMENT)
+    assertions += this._generateVariableLatencyAssertions(allSignals, clockSignal, config);
+    
+    // Generate sequential protocol assertions (ADVICE2 REQUIREMENT)
+    assertions += this._generateSequentialProtocolAssertions(allSignals, clockSignal, config);
     
     // Generate fixed latency assertions (NEW)
     assertions += this._generateFixedLatencyAssertions(allSignals, clockSignal);
+    
+    // Generate custom properties from JSON config (NEW)
+    assertions += this._generateCustomProperties(clockSignal);
     
     // Add optimization notes
     if (optimizations.length > 0) {
@@ -788,8 +854,26 @@ class SVAGeneratorPanel {
     return assertions;
   }
 
-  private _generateProhibitionPatterns(signals: any[], clockSignal: string): string {
-    let assertions = `  // === PROHIBITION PATTERN ASSERTIONS ===\n`;
+  private _generateProhibitionPatterns(signals: any[], clockSignal: string, config: any): string {
+    let assertions = `  // === PROHIBITION PATTERN ASSERTIONS (ADVICE2) ===\n`;
+    
+    // Check for explicit conflict signals from extended config
+    const extendedConfig = config?.extended_config;
+    if (extendedConfig?.conflict_signals) {
+      extendedConfig.conflict_signals.forEach((conflict: any) => {
+        const signal1 = conflict.signal1;
+        const signal2 = conflict.signal2;
+        const description = conflict.description || `${signal1} and ${signal2} conflict`;
+        
+        assertions += `  // ${description}\n`;
+        assertions += `  property no_${signal1}_${signal2}_conflict_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        assertions += `    @(posedge ${clockSignal}) not (${signal1} && ${signal2});\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  no_${signal1}_${signal2}_conflict_a: assert property(no_${signal1}_${signal2}_conflict_p)\n`;
+        assertions += `    else $error("${description}");\n\n`;
+      });
+    }
     
     // Look for potential prohibition patterns
     const fullSignals = signals.filter(s => s.normalizedName.includes('full'));
@@ -851,8 +935,35 @@ class SVAGeneratorPanel {
     return assertions;
   }
 
-  private _generateSignalChangeAssertions(signals: any[], clockSignal: string): string {
-    let assertions = `  // === SIGNAL CHANGE DETECTION ASSERTIONS ===\n`;
+  private _generateSignalChangeAssertions(signals: any[], clockSignal: string, config: any): string {
+    let assertions = `  // === SIGNAL CHANGE DETECTION ASSERTIONS (ADVICE2) ===\n`;
+    
+    // Check for explicit edge detection from extended config
+    const extendedConfig = config?.extended_config;
+    if (extendedConfig?.edge_detection) {
+      extendedConfig.edge_detection.forEach((edge: any) => {
+        const trigger = edge.trigger;
+        const target = edge.target;
+        const type = edge.type || 'change';
+        const description = edge.description || `${trigger} -> ${target} ${type}`;
+        
+        assertions += `  // ${description}\n`;
+        assertions += `  property ${trigger}_${target}_${type}_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        
+        if (type === 'change') {
+          assertions += `    @(posedge ${clockSignal}) ${trigger} |-> $changed(${target});\n`;
+        } else if (type === 'rose') {
+          assertions += `    @(posedge ${clockSignal}) ${trigger} |-> $rose(${target});\n`;
+        } else if (type === 'fell') {
+          assertions += `    @(posedge ${clockSignal}) ${trigger} |-> $fell(${target});\n`;
+        }
+        
+        assertions += `  endproperty\n`;
+        assertions += `  ${trigger}_${target}_${type}_a: assert property(${trigger}_${target}_${type}_p)\n`;
+        assertions += `    else $error("${target} did not ${type} when ${trigger}=1");\n\n`;
+      });
+    }
     
     const enableSignals = signals.filter(s => 
       s.normalizedName.includes('enable') || 
@@ -944,6 +1055,43 @@ class SVAGeneratorPanel {
     }
     
     return assertions;
+  }
+
+  private _generateCustomProperties(clockSignal: string): string {
+    let assertions = `  // === CUSTOM PROPERTIES ===\n`;
+    
+    // Get custom properties from JSON config
+    const config = this._getCurrentConfig();
+    if (config && config.custom_properties && config.custom_properties.length > 0) {
+      config.custom_properties.forEach((prop: any) => {
+        const propName = prop.name;
+        const description = prop.description || 'Custom property';
+        const trigger = prop.trigger || 'always';
+        const condition = prop.condition;
+        
+        assertions += `  // ${description}\n`;
+        assertions += `  property ${propName}_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        
+        if (trigger === 'always') {
+          assertions += `    @(posedge ${clockSignal}) ${condition};\n`;
+        } else {
+          assertions += `    @(posedge ${clockSignal}) ${trigger} |-> ${condition};\n`;
+        }
+        
+        assertions += `  endproperty\n`;
+        assertions += `  ${propName}_a: assert property(${propName}_p)\n`;
+        assertions += `    else $error("Custom property '${propName}' violated: ${description}");\n\n`;
+      });
+    } else {
+      assertions += `  // No custom properties defined\n\n`;
+    }
+    
+    return assertions;
+  }
+
+  private _getCurrentConfig(): any {
+    return this._currentConfig;
   }
 
   private _detectFixedLatencyPatterns(signals: any[]): any[] {
@@ -1321,29 +1469,166 @@ class SVAGeneratorPanel {
     return assertions;
   }
 
+  private _analyzeWaveformDetails(signals: any[]): any {
+    const analysis = {
+      totalSignals: 0,
+      dataSignals: 0,
+      controlSignals: 0,
+      clockSignals: 0,
+      detectedDataWidths: [] as number[],
+      signalPatterns: {} as { [key: string]: any }
+    };
+    
+    signals.forEach((signal, index) => {
+      if (!signal.wave || signal.wave === '' || !signal.name) {
+        return; // Skip empty or spacer signals
+      }
+      
+      analysis.totalSignals++;
+      const signalName = signal.name;
+      const wavePattern = signal.wave;
+      const dataArray = signal.data || [];
+      
+      // Classify signal type
+      if (this._isClockSignal(signal)) {
+        analysis.clockSignals++;
+      } else if (this._isDataSignal(signal)) {
+        analysis.dataSignals++;
+        const width = this._detectSignalWidth(signal);
+        if (!analysis.detectedDataWidths.includes(width)) {
+          analysis.detectedDataWidths.push(width);
+        }
+      } else {
+        analysis.controlSignals++;
+      }
+      
+      // Detailed pattern analysis
+      analysis.signalPatterns[signalName] = this._analyzeIndividualWavePattern(wavePattern, dataArray);
+    });
+    
+    analysis.detectedDataWidths.sort((a, b) => a - b);
+    return analysis;
+  }
+
+  private _isDataSignal(signal: any): boolean {
+    // Check explicit signal type
+    if (signal.type === 'data') {
+      return true;
+    }
+    
+    const name = signal.name ? signal.name.toLowerCase() : '';
+    const wave = signal.wave || '';
+    
+    // Check name patterns
+    if (name.includes('data') || name.includes('addr') || name.includes('bus')) {
+      return true;
+    }
+    
+    // Check wave pattern for data characteristics
+    if (wave.includes('=') || signal.data || /[2-9a-fA-F]/.test(wave)) {
+      return true;
+    }
+    
+    return false;
+  }
+
   private _detectSignalWidth(signal: any): number {
-    // Explicit width declaration
+    // Explicit width declaration (highest priority)
     if (signal.width) return signal.width;
     
-    // Detect from signal name
-    const name = signal.name.toLowerCase();
-    if (name.includes('data') || name.includes('addr')) {
-      return 8; // Common data/address width
+    // For single-bit control signals explicitly marked
+    if (signal.type === 'control' && signal.width === 1) {
+      return 1;
     }
     
-    // Detect from wave pattern
+    // Analyze data array for actual bit requirements
+    if (signal.data && Array.isArray(signal.data)) {
+      const maxValue = signal.data.reduce((max, val) => {
+        if (typeof val === 'string') {
+          // Parse hex, binary, or decimal values
+          const numVal = val.startsWith('0x') ? parseInt(val, 16) :
+                        val.startsWith('0b') ? parseInt(val, 2) :
+                        isNaN(parseInt(val)) ? 0 : parseInt(val);
+          return Math.max(max, numVal);
+        }
+        return Math.max(max, typeof val === 'number' ? val : 0);
+      }, 0);
+      
+      if (maxValue > 0) {
+        // Calculate minimum bits needed
+        const bitsNeeded = Math.ceil(Math.log2(maxValue + 1));
+        // Round up to common widths
+        if (bitsNeeded <= 1) return 1;
+        if (bitsNeeded <= 4) return 4;
+        if (bitsNeeded <= 8) return 8;
+        if (bitsNeeded <= 16) return 16;
+        if (bitsNeeded <= 32) return 32;
+        return 64;
+      }
+    }
+    
+    // Analyze wave pattern for data complexity
     const wave = signal.wave;
-    if (wave.includes('x') || wave.includes('=') || signal.data) {
-      return 8; // Data signals typically 8-bit
+    if (wave) {
+      // Count unique non-control states
+      const dataStates = wave.match(/[2-9a-fA-F]/g);
+      if (dataStates) {
+        const uniqueStates = new Set(dataStates).size;
+        if (uniqueStates > 8) return 8;  // More than 8 states likely 8-bit
+        if (uniqueStates > 4) return 4;  // More than 4 states likely 4-bit
+        if (uniqueStates > 2) return 3;  // More than 2 states likely 3-bit
+        return 2;  // Simple data signal
+      }
     }
     
-    // Check for multi-bit patterns (2-9, a-f)
-    if (/[2-9a-fA-F]/.test(wave)) {
+    // Detect from signal name with improved heuristics
+    const name = signal.name ? signal.name.toLowerCase() : '';
+    if (name.includes('addr') || name.includes('address')) {
+      return 32; // Address typically 32-bit
+    }
+    if (name.includes('data') || name.includes('bus')) {
+      return 8; // Data bus typically 8-bit
+    }
+    if (name.includes('count') || name.includes('cnt')) {
+      return 8; // Counters typically 8-bit
+    }
+    if (name.includes('id') || name.includes('tag')) {
+      return 4; // IDs typically 4-bit
+    }
+    
+    // Check for multi-bit patterns in wave
+    if (wave && /[2-9a-fA-F]/.test(wave)) {
       return 4; // 4-bit for hex patterns
     }
     
-    // Default to single bit for control signals
+    // Default single bit for control signals
     return 1;
+  }
+
+  private _analyzeIndividualWavePattern(wavePattern: string, dataArray: string[]): any {
+    const analysis = {
+      length: wavePattern.length,
+      hasUnknownStates: wavePattern.includes('x'),
+      hasTristate: wavePattern.includes('z'),
+      hasDataTransitions: /[2-9a-fA-F=]/.test(wavePattern),
+      transitions: [] as any[],
+      stableRegions: [] as any[],
+      edgeCount: 0
+    };
+    
+    // Count transitions
+    for (let i = 0; i < wavePattern.length - 1; i++) {
+      if (wavePattern[i] !== wavePattern[i + 1] && wavePattern[i] !== '.' && wavePattern[i + 1] !== '.') {
+        analysis.transitions.push({
+          position: i + 1,
+          from: wavePattern[i],
+          to: wavePattern[i + 1]
+        });
+        analysis.edgeCount++;
+      }
+    }
+    
+    return analysis;
   }
 
   private _generateClockAssertion(signalName: string, wave: string): string {
@@ -1525,5 +1810,170 @@ Please review the following items before using the generated assertions:
 ---
 *This report was automatically generated by WaveRender SVA Extension*
 `;
+  }
+
+  // === ADVICE2.MD REQUIREMENT IMPLEMENTATIONS ===
+  
+  /**
+   * Generate variable latency assertions - ADVICE2 Requirement 1 & 4
+   * Supports ##[min:max] patterns like ##[1:3] ack
+   */
+  private _generateVariableLatencyAssertions(signals: any[], clockSignal: string, config: any): string {
+    let assertions = `  // === VARIABLE LATENCY ASSERTIONS (ADVICE2) ===\n`;
+    
+    // Look for extended config patterns
+    const extendedConfig = config?.extended_config;
+    if (extendedConfig?.timing_relationships) {
+      extendedConfig.timing_relationships.forEach((timing: any) => {
+        if (timing.type === 'variable_latency' && timing.min_cycles && timing.max_cycles) {
+          const triggerSignal = timing.trigger_signal;
+          const responseSignal = timing.response_signal;
+          
+          assertions += `  // ${triggerSignal} -> ${responseSignal} within ${timing.min_cycles}-${timing.max_cycles} cycles\n`;
+          assertions += `  property ${triggerSignal}_to_${responseSignal}_variable_latency_p;\n`;
+          assertions += `    disable iff (!rst_n)\n`;
+          assertions += `    @(posedge ${clockSignal}) $rose(${triggerSignal}) |-> ##[${timing.min_cycles}:${timing.max_cycles}] ${responseSignal};\n`;
+          assertions += `  endproperty\n`;
+          assertions += `  ${triggerSignal}_to_${responseSignal}_variable_latency_a: assert property(${triggerSignal}_to_${responseSignal}_variable_latency_p)\n`;
+          assertions += `    else $error("${responseSignal.toUpperCase()} not asserted within ${timing.min_cycles}-${timing.max_cycles} cycles after ${triggerSignal.toUpperCase()}");\n\n`;
+        }
+      });
+    }
+    
+    // Auto-detect common handshake patterns
+    const controlSignals = signals.filter(s => 
+      s.wave && !s.wave.includes('p') && !s.wave.includes('n') && 
+      (s.name.toLowerCase().includes('req') || s.name.toLowerCase().includes('ack') ||
+       s.name.toLowerCase().includes('valid') || s.name.toLowerCase().includes('ready'))
+    );
+    
+    if (controlSignals.length >= 2) {
+      // Generate typical 1-3 cycle handshake patterns
+      const reqSignal = controlSignals.find(s => s.name.toLowerCase().includes('req') || s.name.toLowerCase().includes('valid'));
+      const ackSignal = controlSignals.find(s => s.name.toLowerCase().includes('ack') || s.name.toLowerCase().includes('ready'));
+      
+      if (reqSignal && ackSignal && reqSignal !== ackSignal) {
+        const reqName = reqSignal.normalizedName;
+        const ackName = ackSignal.normalizedName;
+        
+        assertions += `  // Auto-detected handshake: ${reqName} -> ${ackName} within 1-3 cycles\n`;
+        assertions += `  property ${reqName}_${ackName}_handshake_variable_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        assertions += `    @(posedge ${clockSignal}) $rose(${reqName}) |-> ##[1:3] ${ackName};\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  ${reqName}_${ackName}_handshake_variable_a: assert property(${reqName}_${ackName}_handshake_variable_p)\n`;
+        assertions += `    else $error("${ackName.toUpperCase()} not asserted within 1-3 cycles after ${reqName.toUpperCase()}");\n\n`;
+      }
+    }
+    
+    if (assertions === `  // === VARIABLE LATENCY ASSERTIONS (ADVICE2) ===\n`) {
+      assertions += `  // No variable latency patterns detected\n\n`;
+    }
+    
+    return assertions;
+  }
+
+  /**
+   * Generate sequential protocol assertions - ADVICE2 Requirement 4
+   * Supports A -> B -> C sequence chains
+   */
+  private _generateSequentialProtocolAssertions(signals: any[], clockSignal: string, config: any): string {
+    let assertions = `  // === SEQUENTIAL PROTOCOL ASSERTIONS (ADVICE2) ===\n`;
+    
+    // Look for extended config sequence chains
+    const extendedConfig = config?.extended_config;
+    if (extendedConfig?.sequence_chains) {
+      extendedConfig.sequence_chains.forEach((sequence: any) => {
+        const seqSignals = sequence.signals;
+        if (seqSignals && seqSignals.length >= 2) {
+          const seqName = sequence.name || seqSignals.join('_');
+          
+          assertions += `  // Sequential protocol: ${seqSignals.join(' -> ')}\n`;
+          assertions += `  property ${seqName}_sequence_p;\n`;
+          assertions += `    disable iff (!rst_n)\n`;
+          assertions += `    @(posedge ${clockSignal}) $rose(${seqSignals[0]})`;
+          
+          for (let i = 1; i < seqSignals.length; i++) {
+            const delay = sequence.delays?.[i-1] || '[1:5]';
+            assertions += ` |-> ##${delay} $rose(${seqSignals[i]})`;
+          }
+          
+          assertions += `;\n  endproperty\n`;
+          assertions += `  ${seqName}_sequence_a: assert property(${seqName}_sequence_p)\n`;
+          assertions += `    else $error("Protocol sequence violated: ${seqSignals.join(' -> ')}");\n\n`;
+        }
+      });
+    }
+    
+    // Auto-detect common state machine patterns
+    const stateSignals = signals.filter(s => 
+      s.wave && (
+        s.name.toLowerCase().includes('start') || 
+        s.name.toLowerCase().includes('busy') || 
+        s.name.toLowerCase().includes('done') || 
+        s.name.toLowerCase().includes('valid') ||
+        s.name.toLowerCase().includes('ready')
+      )
+    );
+    
+    if (stateSignals.length >= 3) {
+      const startSignal = stateSignals.find(s => s.name.toLowerCase().includes('start'));
+      const busySignal = stateSignals.find(s => s.name.toLowerCase().includes('busy'));
+      const doneSignal = stateSignals.find(s => s.name.toLowerCase().includes('done'));
+      
+      if (startSignal && busySignal && doneSignal) {
+        const startName = startSignal.normalizedName;
+        const busyName = busySignal.normalizedName;
+        const doneName = doneSignal.normalizedName;
+        
+        assertions += `  // Auto-detected state machine: ${startName} -> ${busyName} -> ${doneName}\n`;
+        assertions += `  property state_machine_sequence_p;\n`;
+        assertions += `    disable iff (!rst_n)\n`;
+        assertions += `    @(posedge ${clockSignal}) $rose(${startName}) |-> ##[1:5] $rose(${busyName}) ##[1:10] $rose(${doneName});\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  state_machine_sequence_a: assert property(state_machine_sequence_p)\n`;
+        assertions += `    else $error("State machine sequence violated: ${startName} -> ${busyName} -> ${doneName}");\n\n`;
+      }
+    }
+    
+    if (assertions === `  // === SEQUENTIAL PROTOCOL ASSERTIONS (ADVICE2) ===\n`) {
+      assertions += `  // No sequential protocol patterns detected\n\n`;
+    }
+    
+    return assertions;
+  }
+
+  /**
+   * Generate reset behavior assertions - ADVICE2 Requirement 2
+   * Supports reset -> ##1 (!ready && !busy) patterns
+   */
+  private _generateResetBehaviorAssertions(signals: any[], clockSignal: string, config: any): string {
+    let assertions = `  // === RESET BEHAVIOR ASSERTIONS (ADVICE2) ===\n`;
+    
+    const extendedConfig = config?.extended_config;
+    if (extendedConfig?.reset_behavior) {
+      const resetBehavior = extendedConfig.reset_behavior;
+      const resetSignal = resetBehavior.reset_signal;
+      const resetTargets = resetBehavior.reset_targets || [];
+      
+      if (resetTargets.length > 0) {
+        const conditions = resetTargets.map((target: any) => 
+          target.value === "0" ? `!${target.signal}` : target.signal
+        ).join(' && ');
+        
+        assertions += `  // ${resetBehavior.description || 'Reset behavior'}\n`;
+        assertions += `  property reset_behavior_p;\n`;
+        assertions += `    @(posedge ${clockSignal}) ${resetSignal} |-> ##1 (${conditions});\n`;
+        assertions += `  endproperty\n`;
+        assertions += `  reset_behavior_a: assert property(reset_behavior_p)\n`;
+        assertions += `    else $error("Reset did not clear ready/busy correctly");\n\n`;
+      }
+    }
+    
+    if (assertions === `  // === RESET BEHAVIOR ASSERTIONS (ADVICE2) ===\n`) {
+      assertions += `  // No reset behavior patterns configured\n\n`;
+    }
+    
+    return assertions;
   }
 }
