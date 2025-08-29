@@ -570,17 +570,9 @@ class SVAGeneratorPanel {
     try {
       // Phase 2: Node analysis
       const nodeMap = this._parseNodes(jsonData.signal);
-      console.log('=== DEBUG: Parsed Nodes ===');
-      nodeMap.forEach((node, id) => {
-        console.log(`Node ${id}: signal=${node.signalName}, position=${node.position}, eventType=${node.eventType}`);
-      });
       
       // Phase 3: Edge analysis
       const edges = this._parseEdges(jsonData.edge);
-      console.log('=== DEBUG: Parsed Edges ===');
-      edges.forEach((edge, index) => {
-        console.log(`Edge ${index}: ${edge.sourceNode} ${edge.operator} ${edge.targetNode} (${edge.edgeType}) ${edge.label || ''}`);
-      });
       
       // Phase 4: SystemVerilog generation
       svaCode += this._generateSystemVerilogModule(nodeMap, edges);

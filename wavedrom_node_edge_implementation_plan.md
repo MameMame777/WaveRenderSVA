@@ -134,21 +134,21 @@ WaveDromのnode/edge記法からSystemVerilogアサーションを生成する�
 ## フェーズ5: テスト・検証
 
 ### 5.1 基本記法テスト
-- [ ] `node_edge_sample.json`での動作確認
-  - [ ] `a~c t1` (Spline記法)
-  - [ ] `d-|->b t2` (Sharp Line記法)
-  - [ ] `e-|h setup` (基本Sharp記法)
-  - [ ] `h<->c sync` (双方向Sharp記法)
+- [x] `node_edge_sample.json`での動作確認
+  - [x] `a~c t1` (Spline記法)
+  - [x] `d-|->b t2` (Sharp Line記法)
+  - [x] `e-|h setup` (基本Sharp記法)
+  - [x] `h<->c sync` (双方向Sharp記法)
 
 ### 5.2 複合パターンテスト
-- [ ] `simple_protocol.json`での状態機械テスト
-- [ ] `pipeline_example.json`での複雑パイプラインテスト
-- [ ] 複数の記法が混在するケースのテスト
+- [x] `simple_protocol.json`での状態機械テスト
+- [x] `pipeline_example.json`での複雑パイプラインテスト
+- [x] 複数の記法が混在するケースのテスト
 
 ### 5.3 SystemVerilog文法検証
-- [ ] 生成されたコードの構文チェック
-- [ ] SystemVerilogシミュレータでの検証
-- [ ] アサーション実行テスト
+- [x] 生成されたコードの構文チェック
+- [x] SystemVerilogシミュレータでの検証
+- [x] アサーション実行テスト
 
 ---
 
