@@ -1,6 +1,23 @@
 import * as path from "path";
 import * as vscode from 'vscode';
 
+// NodeInfo interface for WaveDrom node analysis
+interface NodeInfo {
+  id: string;           // 'a', 'b', 'c'...
+  signalName: string;   // 'req', 'ack', 'data'...
+  position: number;     // タイミング位置
+  eventType: string;    // 'rising_edge', 'falling_edge', 'data_change', 'stable'
+}
+
+// EdgeInfo interface for WaveDrom edge analysis
+interface EdgeInfo {
+  sourceNode: string;   // Source node ID
+  targetNode: string;   // Target node ID
+  edgeType: string;     // 'sharp_line', 'spline'
+  operator: string;     // '-|>', '<->', '~', etc.
+  label?: string;       // Optional label
+}
+
 export function activate(context: vscode.ExtensionContext) {
   // Start and live preview mode
   context.subscriptions.push(
@@ -550,13 +567,21 @@ class SVAGeneratorPanel {
     }
 
     try {
-      // Phase 2: Node analysis (to be implemented)
+      // Phase 2: Node analysis
       const nodeMap = this._parseNodes(jsonData.signal);
+      console.log('=== DEBUG: Parsed Nodes ===');
+      nodeMap.forEach((node, id) => {
+        console.log(`Node ${id}: signal=${node.signalName}, position=${node.position}, eventType=${node.eventType}`);
+      });
       
-      // Phase 3: Edge analysis (to be implemented)  
+      // Phase 3: Edge analysis
       const edges = this._parseEdges(jsonData.edge);
+      console.log('=== DEBUG: Parsed Edges ===');
+      edges.forEach((edge, index) => {
+        console.log(`Edge ${index}: ${edge.sourceNode} ${edge.operator} ${edge.targetNode} (${edge.edgeType}) ${edge.label || ''}`);
+      });
       
-      // Phase 4: SystemVerilog generation (to be implemented)
+      // Phase 4: SystemVerilog generation
       svaCode += this._generateSystemVerilogModule(nodeMap, edges);
       
     } catch (error) {
@@ -566,41 +591,239 @@ class SVAGeneratorPanel {
     return svaCode;
   }
 
-  // Phase 2: Node analysis methods (skeleton)
-  private _parseNodes(signals: any[]): Map<string, any> {
-    const nodeMap = new Map<string, any>();
+  // Phase 2: Node analysis methods
+  private _parseNodes(signals: any[]): Map<string, NodeInfo> {
+    const nodeMap = new Map<string, NodeInfo>();
     
-    // TODO: Implement node parsing
-    // Extract node IDs from signal[].node strings
-    // Map to signal names and timing positions
+    signals.forEach(signal => {
+      if (!signal.node || !signal.name) return;
+      
+      const nodeString = signal.node as string;
+      const signalName = signal.name as string;
+      const waveString = signal.wave as string;
+      
+      // Parse each position in the node string to find node IDs
+      for (let position = 0; position < nodeString.length; position++) {
+        const nodeChar = nodeString[position];
+        
+        // Skip dots and spaces (no nodes at these positions)
+        if (nodeChar === '.' || nodeChar === ' ') continue;
+        
+        // Extract node ID (a, b, c, etc.)
+        const nodeId = nodeChar;
+        
+        // Determine event type from wave transition at this position
+        const eventType = this._detectEventType(waveString, position);
+        
+        // Create node info
+        const nodeInfo: NodeInfo = {
+          id: nodeId,
+          signalName: signalName,
+          position: position,
+          eventType: eventType
+        };
+        
+        nodeMap.set(nodeId, nodeInfo);
+      }
+    });
     
     return nodeMap;
   }
 
-  // Phase 3: Edge analysis methods (skeleton)
-  private _parseEdges(edges: string[]): any[] {
-    const parsedEdges: any[] = [];
+  // Helper method to detect event type from wave transition
+  private _detectEventType(waveString: string, position: number): string {
+    if (!waveString || position >= waveString.length) {
+      return 'unknown';
+    }
     
-    // TODO: Implement edge parsing
-    // Parse Sharp Lines and Splines syntax
-    // Classify edge types and operators
+    const currentChar = waveString[position];
+    const prevChar = position > 0 ? waveString[position - 1] : '';
+    
+    // Detect rising edge (0 -> 1)
+    if (prevChar === '0' && currentChar === '1') {
+      return 'rising_edge';
+    }
+    
+    // Detect falling edge (1 -> 0)
+    if (prevChar === '1' && currentChar === '0') {
+      return 'falling_edge';
+    }
+    
+    // Detect data change (any transition that's not rising/falling edge)
+    if (prevChar && prevChar !== currentChar && 
+        !((prevChar === '0' && currentChar === '1') || (prevChar === '1' && currentChar === '0'))) {
+      return 'data_change';
+    }
+    
+    // Detect stable state (same as previous)
+    if (prevChar === currentChar) {
+      return 'stable';
+    }
+    
+    // Default for initial state or unknown transitions
+    return 'initial_state';
+  }
+
+  // Phase 3: Edge analysis methods
+  private _parseEdges(edges: string[]): EdgeInfo[] {
+    const parsedEdges: EdgeInfo[] = [];
+    
+    edges.forEach(edgeString => {
+      const edgeInfo = this._parseEdgeString(edgeString);
+      if (edgeInfo) {
+        parsedEdges.push(edgeInfo);
+      }
+    });
     
     return parsedEdges;
   }
 
-  // Phase 4: SystemVerilog generation (skeleton)
-  private _generateSystemVerilogModule(nodeMap: Map<string, any>, edges: any[]): string {
+  // Parse individual edge string (e.g., "a-|->b", "c~d t1", "h<->c sync")
+  private _parseEdgeString(edgeString: string): EdgeInfo | null {
+    if (!edgeString || typeof edgeString !== 'string') {
+      return null;
+    }
+
+    // Remove label if present (everything after space)
+    const parts = edgeString.trim().split(' ');
+    const edgePart = parts[0];
+    const label = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
+
+    // Sharp Lines patterns: -|>, <->, -|-, |->, <-|, etc.
+    const sharpLinePatterns = [
+      { pattern: /<->/, operator: '<->', type: 'bidirectional_sharp' },
+      { pattern: /-\|\->/, operator: '-|->', type: 'sharp_line' },
+      { pattern: /-\|>/, operator: '-|>', type: 'sharp_line_simple' },
+      { pattern: /<-\|-/, operator: '<-|-', type: 'reverse_sharp' },
+      { pattern: /\|->/, operator: '|->', type: 'sharp_start' },
+      { pattern: /-\|/, operator: '-|', type: 'sharp_end' }
+    ];
+
+    // Splines patterns: ~, -~>, <~>, etc.
+    const splinePatterns = [
+      { pattern: /<~>/, operator: '<~>', type: 'bidirectional_spline' },
+      { pattern: /-~>/, operator: '-~>', type: 'spline' },
+      { pattern: /<~-/, operator: '<~-', type: 'reverse_spline' },
+      { pattern: /~/, operator: '~', type: 'simple_spline' }
+    ];
+
+    // Try to match sharp line patterns first
+    for (const { pattern, operator, type } of sharpLinePatterns) {
+      const match = edgePart.match(new RegExp(`(.+)${pattern.source}(.+)`));
+      if (match) {
+        return {
+          sourceNode: match[1],
+          targetNode: match[2],
+          edgeType: 'sharp_line',
+          operator: operator,
+          label: label
+        };
+      }
+    }
+
+    // Try to match spline patterns
+    for (const { pattern, operator, type } of splinePatterns) {
+      const match = edgePart.match(new RegExp(`(.+)${pattern.source}(.+)`));
+      if (match) {
+        return {
+          sourceNode: match[1],
+          targetNode: match[2],
+          edgeType: 'spline',
+          operator: operator,
+          label: label
+        };
+      }
+    }
+
+    // If no pattern matches, try simple node-to-node connection
+    if (edgePart.length >= 2) {
+      return {
+        sourceNode: edgePart[0],
+        targetNode: edgePart[edgePart.length - 1],
+        edgeType: 'simple',
+        operator: 'simple',
+        label: label
+      };
+    }
+
+    return null;
+  }
+
+  // Phase 4: SystemVerilog generation
+  private _generateSystemVerilogModule(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[]): string {
     let moduleCode = `module wavedrom_assertions (\n`;
     moduleCode += `  input logic clk,\n`;
-    moduleCode += `  input logic rst_n\n`;
-    moduleCode += `  // TODO: Add signal declarations\n`;
-    moduleCode += `);\n\n`;
+    moduleCode += `  input logic rst_n`;
     
-    moduleCode += `  // TODO: Generate assertions from node/edge data\n\n`;
+    // Extract unique signal names from nodes
+    const signalNames = new Set<string>();
+    nodeMap.forEach(node => signalNames.add(node.signalName));
+    
+    // Add signal declarations
+    signalNames.forEach(signalName => {
+      if (signalName !== 'clk' && signalName !== 'rst_n') {
+        moduleCode += `,\n  input logic ${signalName}`;
+      }
+    });
+    
+    moduleCode += `\n);\n\n`;
+    
+    // Generate assertions based on edges
+    edges.forEach((edge, index) => {
+      const sourceNode = nodeMap.get(edge.sourceNode);
+      const targetNode = nodeMap.get(edge.targetNode);
+      
+      if (sourceNode && targetNode) {
+        const assertionName = `assert_${edge.sourceNode}_to_${edge.targetNode}_${index}`;
+        const assertion = this._generateAssertion(sourceNode, targetNode, edge);
+        
+        moduleCode += `  // ${edge.label || 'Timing relationship'}\n`;
+        moduleCode += `  ${assertionName}: ${assertion}\n\n`;
+      }
+    });
     
     moduleCode += `endmodule\n`;
     
     return moduleCode;
+  }
+
+  // Generate SystemVerilog assertion based on node and edge information
+  private _generateAssertion(sourceNode: NodeInfo, targetNode: NodeInfo, edge: EdgeInfo): string {
+    const sourceEvent = this._getSystemVerilogEvent(sourceNode);
+    const targetEvent = this._getSystemVerilogEvent(targetNode);
+    
+    // Calculate timing difference
+    const timingDiff = targetNode.position - sourceNode.position;
+    const timingClause = timingDiff > 0 ? `##${timingDiff}` : '';
+    
+    // Generate assertion based on edge type
+    if (edge.edgeType === 'sharp_line') {
+      // Sharp lines: precise timing relationship
+      return `assert property (@(posedge clk) disable iff (!rst_n) ${sourceEvent} |-> ${timingClause} ${targetEvent});`;
+    } else if (edge.edgeType === 'spline') {
+      // Splines: flexible timing relationship
+      const flexibleTiming = timingDiff > 0 ? `##[1:${timingDiff + 2}]` : '##[0:2]';
+      return `assert property (@(posedge clk) disable iff (!rst_n) ${sourceEvent} |-> ${flexibleTiming} ${targetEvent});`;
+    } else {
+      // Simple connection
+      return `assert property (@(posedge clk) disable iff (!rst_n) ${sourceEvent} |-> ${timingClause} ${targetEvent});`;
+    }
+  }
+
+  // Convert node event type to SystemVerilog event expression
+  private _getSystemVerilogEvent(node: NodeInfo): string {
+    switch (node.eventType) {
+      case 'rising_edge':
+        return `$rose(${node.signalName})`;
+      case 'falling_edge':
+        return `$fell(${node.signalName})`;
+      case 'data_change':
+        return `$changed(${node.signalName})`;
+      case 'stable':
+        return `$stable(${node.signalName})`;
+      default:
+        return node.signalName; // Simple signal reference
+    }
   }
 
   private _parseExtendedConfig(jsonData: any): any {
