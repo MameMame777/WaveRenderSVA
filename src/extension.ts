@@ -16,6 +16,7 @@ interface EdgeInfo {
   edgeType: string;     // 'sharp_line', 'spline'
   operator: string;     // '-|>', '<->', '~', etc.
   label?: string;       // Optional label
+  description?: string; // Pattern description for debugging/documentation
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -678,7 +679,7 @@ class SVAGeneratorPanel {
     return parsedEdges;
   }
 
-  // Parse individual edge string (e.g., "a-|->b", "c~d t1", "h<->c sync")
+  // Parse individual edge string with comprehensive Sharp Lines and Splines support
   private _parseEdgeString(edgeString: string): EdgeInfo | null {
     if (!edgeString || typeof edgeString !== 'string') {
       return null;
@@ -689,26 +690,33 @@ class SVAGeneratorPanel {
     const edgePart = parts[0];
     const label = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
 
-    // Sharp Lines patterns: -|>, <->, -|-, |->, <-|, etc.
+    // Phase 3: Comprehensive Sharp Lines patterns (厳密なタイミング制約)
     const sharpLinePatterns = [
-      { pattern: /<->/, operator: '<->', type: 'bidirectional_sharp' },
-      { pattern: /-\|\->/, operator: '-|->', type: 'sharp_line' },
-      { pattern: /-\|>/, operator: '-|>', type: 'sharp_line_simple' },
-      { pattern: /<-\|-/, operator: '<-|-', type: 'reverse_sharp' },
-      { pattern: /\|->/, operator: '|->', type: 'sharp_start' },
-      { pattern: /-\|/, operator: '-|', type: 'sharp_end' }
+      { pattern: /<->/, operator: '<->', type: 'bidirectional_sharp', description: '厳密な双方向関係' },
+      { pattern: /<-\|-/, operator: '<-|-', type: 'reverse_sharp_end', description: '逆方向厳密終端' },
+      { pattern: /-\|\->/, operator: '-|->', type: 'sharp_line_arrow', description: '厳密な遅延関係' },
+      { pattern: /-\|>/, operator: '-|>', type: 'sharp_line_simple', description: '短い厳密遅延' },
+      { pattern: /\|->/, operator: '|->', type: 'conditional_sharp', description: '条件付き厳密関係' },
+      { pattern: /-\|-/, operator: '-|-', type: 'one_cycle_delay', description: '1サイクル遅延' },
+      { pattern: /->/, operator: '->', type: 'strict_direction', description: '厳密な方向性' },
+      { pattern: /-\|/, operator: '-|', type: 'immediate_causality', description: '即座の因果関係' },
+      { pattern: /-/, operator: '-', type: 'basic_connection', description: '基本接続' },
+      { pattern: /\+/, operator: '+', type: 'logical_and', description: '論理AND関係' }
     ];
 
-    // Splines patterns: ~, -~>, <~>, etc.
+    // Phase 3: Comprehensive Splines patterns (柔軟なタイミング制約)
     const splinePatterns = [
-      { pattern: /<~>/, operator: '<~>', type: 'bidirectional_spline' },
-      { pattern: /-~>/, operator: '-~>', type: 'spline' },
-      { pattern: /<~-/, operator: '<~-', type: 'reverse_spline' },
-      { pattern: /~/, operator: '~', type: 'simple_spline' }
+      { pattern: /<-~>/, operator: '<-~>', type: 'wide_bidirectional_spline', description: '広範囲双方向' },
+      { pattern: /<~>/, operator: '<~>', type: 'bidirectional_spline', description: '柔軟な双方向関係' },
+      { pattern: /<~-/, operator: '<~-', type: 'reverse_spline', description: '逆方向柔軟' },
+      { pattern: /-~>/, operator: '-~>', type: 'flexible_delay', description: '柔軟な遅延関係' },
+      { pattern: /~->/, operator: '~->', type: 'flexible_direction', description: '柔軟な方向性' },
+      { pattern: /-~/, operator: '-~', type: 'flexible_relation', description: '柔軟な関係' },
+      { pattern: /~/, operator: '~', type: 'flexible_connection', description: '柔軟な接続' }
     ];
 
-    // Try to match sharp line patterns first
-    for (const { pattern, operator, type } of sharpLinePatterns) {
+    // Try to match sharp line patterns first (order matters for correct precedence)
+    for (const { pattern, operator, type, description } of sharpLinePatterns) {
       const match = edgePart.match(new RegExp(`(.+)${pattern.source}(.+)`));
       if (match) {
         return {
@@ -716,13 +724,14 @@ class SVAGeneratorPanel {
           targetNode: match[2],
           edgeType: 'sharp_line',
           operator: operator,
-          label: label
+          label: label,
+          description: description
         };
       }
     }
 
     // Try to match spline patterns
-    for (const { pattern, operator, type } of splinePatterns) {
+    for (const { pattern, operator, type, description } of splinePatterns) {
       const match = edgePart.match(new RegExp(`(.+)${pattern.source}(.+)`));
       if (match) {
         return {
@@ -730,7 +739,8 @@ class SVAGeneratorPanel {
           targetNode: match[2],
           edgeType: 'spline',
           operator: operator,
-          label: label
+          label: label,
+          description: description
         };
       }
     }
@@ -787,26 +797,96 @@ class SVAGeneratorPanel {
     return moduleCode;
   }
 
-  // Generate SystemVerilog assertion based on node and edge information
+  // Phase 3: Advanced SystemVerilog assertion generation based on design guidelines
   private _generateAssertion(sourceNode: NodeInfo, targetNode: NodeInfo, edge: EdgeInfo): string {
     const sourceEvent = this._getSystemVerilogEvent(sourceNode);
     const targetEvent = this._getSystemVerilogEvent(targetNode);
     
     // Calculate timing difference
     const timingDiff = targetNode.position - sourceNode.position;
-    const timingClause = timingDiff > 0 ? `##${timingDiff}` : '';
     
-    // Generate assertion based on edge type
+    // Generate assertion based on edge type and operator (Phase 3: Advanced patterns)
     if (edge.edgeType === 'sharp_line') {
-      // Sharp lines: precise timing relationship
-      return `assert property (@(posedge clk) disable iff (!rst_n) ${sourceEvent} |-> ${timingClause} ${targetEvent});`;
+      return this._generateSharpLineAssertion(sourceEvent, targetEvent, edge.operator, timingDiff);
     } else if (edge.edgeType === 'spline') {
-      // Splines: flexible timing relationship
-      const flexibleTiming = timingDiff > 0 ? `##[1:${timingDiff + 2}]` : '##[0:2]';
-      return `assert property (@(posedge clk) disable iff (!rst_n) ${sourceEvent} |-> ${flexibleTiming} ${targetEvent});`;
+      return this._generateSplineAssertion(sourceEvent, targetEvent, edge.operator, timingDiff);
     } else {
-      // Simple connection
+      // Fallback for simple connections
+      const timingClause = timingDiff > 0 ? `##${timingDiff}` : '';
       return `assert property (@(posedge clk) disable iff (!rst_n) ${sourceEvent} |-> ${timingClause} ${targetEvent});`;
+    }
+  }
+
+  // Phase 3: Sharp Lines (厳密なタイミング制約) SystemVerilog generation
+  private _generateSharpLineAssertion(sourceEvent: string, targetEvent: string, operator: string, timingDiff: number): string {
+    const baseClause = '@(posedge clk) disable iff (!rst_n)';
+    
+    switch (operator) {
+      case '<->':  // 厳密な双方向関係
+        return `assert property (${baseClause} ${sourceEvent} iff ${targetEvent});`;
+        
+      case '-|->': // 厳密な遅延関係
+        const timing1 = timingDiff > 0 ? `##${timingDiff}` : '##1';
+        return `assert property (${baseClause} ${sourceEvent} |=> ${timing1} ${targetEvent});`;
+        
+      case '-|>':  // 短い厳密遅延
+        return `assert property (${baseClause} ${sourceEvent} |=> ${targetEvent});`;
+        
+      case '|->':  // 条件付き厳密関係
+        const timing2 = timingDiff > 0 ? `##${timingDiff}` : '';
+        return `assert property (${baseClause} ${sourceEvent} |-> ${timing2} ${targetEvent});`;
+        
+      case '-|-':  // 1サイクル遅延
+        return `assert property (${baseClause} ${sourceEvent} |=> ##1 ${targetEvent});`;
+        
+      case '->':   // 厳密な方向性
+        const timing3 = timingDiff > 0 ? `##${timingDiff}` : '';
+        return `assert property (${baseClause} ${sourceEvent} |=> ${timing3} ${targetEvent});`;
+        
+      case '-|':   // 即座の因果関係
+        return `assert property (${baseClause} ${sourceEvent} |=> ${targetEvent});`;
+        
+      case '+':    // 論理AND関係
+        return `assert property (${baseClause} ${sourceEvent} and ${targetEvent});`;
+        
+      case '-':    // 基本接続
+        const timing4 = timingDiff > 0 ? `##${timingDiff}` : '';
+        return `assert property (${baseClause} ${sourceEvent} |-> ${timing4} ${targetEvent});`;
+        
+      default:
+        const timing5 = timingDiff > 0 ? `##${timingDiff}` : '';
+        return `assert property (${baseClause} ${sourceEvent} |-> ${timing5} ${targetEvent});`;
+    }
+  }
+
+  // Phase 3: Splines (柔軟なタイミング制約) SystemVerilog generation
+  private _generateSplineAssertion(sourceEvent: string, targetEvent: string, operator: string, timingDiff: number): string {
+    const baseClause = '@(posedge clk) disable iff (!rst_n)';
+    
+    switch (operator) {
+      case '<-~>': // 広範囲双方向
+        const maxDelay1 = Math.max(timingDiff + 2, 3);
+        return `assert property (${baseClause} ${sourceEvent} |=> ##[0:${maxDelay1}] ${targetEvent});`;
+        
+      case '<~>':  // 柔軟な双方向関係
+        return `assert property (${baseClause} ${sourceEvent} |-> s_eventually ${targetEvent});`;
+        
+      case '-~>':  // 柔軟な遅延関係
+        const flexDelay1 = Math.max(timingDiff, 1);
+        return `assert property (${baseClause} ${sourceEvent} |=> ##[1:${flexDelay1 + 2}] ${targetEvent});`;
+        
+      case '~->':  // 柔軟な方向性
+        return `assert property (${baseClause} ${sourceEvent} |-> s_eventually ${targetEvent});`;
+        
+      case '-~':   // 柔軟な関係
+        const flexDelay2 = Math.max(timingDiff + 1, 2);
+        return `assert property (${baseClause} ${sourceEvent} |=> ##[0:${flexDelay2}] ${targetEvent});`;
+        
+      case '~':    // 柔軟な接続
+        return `assert property (${baseClause} ${sourceEvent} |=> s_eventually ${targetEvent});`;
+        
+      default:
+        return `assert property (${baseClause} ${sourceEvent} |-> s_eventually ${targetEvent});`;
     }
   }
 
