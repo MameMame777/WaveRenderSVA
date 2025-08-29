@@ -1,0 +1,14 @@
+{ 
+  "signal": [
+    {"name": "clk", "wave": "p.p.p.p.p.p."},
+    {"name": "start", "wave": "01...0.....", "node": ".a........"},
+    {"name": "busy", "wave": "0.1..0.....", "node": "..b..c...."},
+    {"name": "done", "wave": "0....10....", "node": ".....d...."}
+  ],
+  
+  "edge": [
+    "a-|->b",
+    "c-|d", 
+    "a-|>d complete"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.p.p.p.p.p.p.p.", "node": "................"},
+    {"name": "reset", "wave": "10.............", "node": ".a.............."},
+    {"name": "enable", "wave": "0.1..0.........", "node": "..b..c.........."},
+    {"name": "data_in", "wave": "x.234x.........", "node": "..def..........."},
+    {"name": "data_out", "wave": "x...456x.......", "node": "....ghi........."},
+    {"name": "valid_out", "wave": "0...1..0.......", "node": "....j..k........"}
+  ],
+  
+  "edge": [
+    "a-|->b init",
+    "b-|d trigger",
+    "d-|->g pipeline",
+    "g-|j output",
+    "c-|k disable",
+    "d<->j correlation"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.....|..."},
+    {"name": "addr", "wave": "x.=.=.|=.x", "data": ["0x100", "0x200", "0x300"]},
+    {"name": "req", "wave": "0.1..0|..."},
+    {"name": "ack", "wave": "0...1.|.0."},
+    {"name": "data_out", "wave": "x...=.|=.x", "data": ["0xAA", "0xBB"]}
+  ],
+  "extended_config": {
+    "module_name": "memory_interface_test",
+    "signals": {
+      "clk": {"type": "clock", "width": 1},
+      "addr": {"type": "data", "width": 16, "role": "address"},
+      "req": {"type": "control", "width": 1, "role": "request"},
+      "ack": {"type": "control", "width": 1, "role": "acknowledge"},
+      "data_out": {"type": "data", "width": 8, "role": "payload"}
+    },
+    "protocols": {
+      "memory_read": {
+        "type": "request_acknowledge",
+        "request_signal": "req",
+        "acknowledge_signal": "ack",
+        "address_signal": "addr",
+        "data_signals": ["data_out"]
+      }
+    },
+    "timing_relationships": [
+      {
+        "type": "fixed_latency",
+        "trigger_signal": "req",
+        "response_signal": "ack",
+        "latency_cycles": 3
+      }
+    ]
+  }
+}

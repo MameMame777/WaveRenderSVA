@@ -1,4 +1,4 @@
-**SystemVerilog Assertions (SVA)** の典型的な **実例** を、波形イメージや使用シーンごとにまとめます。
+ **SystemVerilog Assertions (SVA)** の典型的な **実例** を、波形イメージや使用シーンごとにまとめます。
 
 ---
 

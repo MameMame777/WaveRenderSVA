@@ -531,97 +531,76 @@ class SVAGeneratorPanel {
   }
 
   private _generateSVAFromJSON(jsonData: any): string {
-    // Convert WaveDrom JSON to SystemVerilog Assertions with enhanced analysis
-    let svaCode = `// SystemVerilog Assertions generated from WaveDrom JSON\n`;
+    // Generate SystemVerilog Assertions from WaveDrom Node/Edge syntax
+    return this._generateSVAFromWaveDrom(jsonData);
+  }
+
+  private _generateSVAFromWaveDrom(jsonData: any): string {
+    let svaCode = `// SystemVerilog Assertions generated from WaveDrom Node/Edge syntax\n`;
     svaCode += `// Generated on ${new Date().toISOString()}\n`;
-    svaCode += `// Enhanced with improved waveform analysis and timing accuracy\n\n`;
+    svaCode += `// Based on WaveDrom Sharp Lines and Splines specification\n\n`;
     
+    // Basic JSON validation
     if (!jsonData.signal || !Array.isArray(jsonData.signal)) {
       return svaCode + "// Error: No valid signal data found in JSON\n";
     }
 
-    // Perform detailed waveform analysis for better assertions
-    const waveformDetails = this._analyzeWaveformDetails(jsonData.signal);
-    
-    // Add waveform analysis comments
-    if (waveformDetails.totalSignals > 0) {
-      svaCode += `// WAVEFORM ANALYSIS SUMMARY:\n`;
-      svaCode += `// - Total signals analyzed: ${waveformDetails.totalSignals}\n`;
-      svaCode += `// - Data signals: ${waveformDetails.dataSignals}\n`;
-      svaCode += `// - Control signals: ${waveformDetails.controlSignals}\n`;
-      svaCode += `// - Clock signals: ${waveformDetails.clockSignals}\n`;
-      if (waveformDetails.detectedDataWidths.length > 0) {
-        svaCode += `// - Detected data widths: ${waveformDetails.detectedDataWidths.join(', ')} bits\n`;
-      }
-      svaCode += `\n`;
+    if (!jsonData.edge || !Array.isArray(jsonData.edge)) {
+      return svaCode + "// Error: No edge data found in JSON - WaveDrom node/edge syntax required\n";
     }
 
-    // Extract extended configuration if available (NEW)
-    const config = this._parseExtendedConfig(jsonData);
-    const clockSignal = config.clock_signal || 'clk';
-    const resetSignal = config.reset_signal || 'rst_n';
-    const moduleName = config.module_name || 'assertion_module';
-    const timeoutCycles = config.timeout_cycles || 10;
-    
-    // Signal normalization and validation with deduplication
-    const { validSignals, warnings } = this._normalizeAndValidateSignals(jsonData.signal);
-    const clockInfo = validSignals.find((s: any) => this._isClockSignal(s));
-    
-    // Add configuration info to output
-    if (config.has_extended_config) {
-      svaCode += `// Extended Configuration Detected:\n`;
-      svaCode += `// - Clock: ${clockSignal}, Reset: ${resetSignal}\n`;
-      svaCode += `// - Module: ${moduleName}\n`;
-      svaCode += `// - Timeout Cycles: ${timeoutCycles}\n`;
-      if (config.prohibition_patterns?.length > 0) {
-        svaCode += `// - Prohibition Patterns: ${config.prohibition_patterns.length} configured\n`;
-      }
-      if (config.has_protocol_definitions) {
-        svaCode += `// - Protocol Definitions: ${Object.keys(config.protocols).join(', ')}\n`;
-      }
-      if (config.has_timing_definitions) {
-        svaCode += `// - Timing Relationships: ${config.timing_relationships.length} defined\n`;
-      }
-      svaCode += `\n`;
+    try {
+      // Phase 2: Node analysis (to be implemented)
+      const nodeMap = this._parseNodes(jsonData.signal);
+      
+      // Phase 3: Edge analysis (to be implemented)  
+      const edges = this._parseEdges(jsonData.edge);
+      
+      // Phase 4: SystemVerilog generation (to be implemented)
+      svaCode += this._generateSystemVerilogModule(nodeMap, edges);
+      
+    } catch (error) {
+      svaCode += `// Error during WaveDrom processing: ${error}\n`;
     }
-    
-    // Add warnings to output
-    if (warnings.length > 0) {
-      svaCode += `// WARNINGS:\n`;
-      warnings.forEach(warning => {
-        svaCode += `// - ${warning}\n`;
-      });
-      svaCode += `\n`;
-    }
-    
-    // Auto-detect protocol patterns and generate optimized assertions
-    const protocolAnalysis = this._analyzeProtocolPatterns(validSignals);
-    
-    svaCode += `// Protocol Analysis: ${protocolAnalysis.detectedProtocols.join(', ')}\n`;
-    svaCode += `// Optimization: ${protocolAnalysis.optimizations.join(', ')}\n\n`;
-    
-    svaCode += `module ${moduleName} (\n`;
-    svaCode += `  input logic        ${clockSignal},\n`;
-    svaCode += `  input logic        ${resetSignal}`;
-    
-    // Add all non-clock signals as inputs with proper width detection
-    validSignals.forEach((signal: any) => {
-      if (!this._isClockSignal(signal)) {
-        const signalName = signal.normalizedName;
-        const width = this._detectSignalWidth(signal);
-        const widthDecl = width > 1 ? `[${width-1}:0] ` : '       ';
-        svaCode += `,\n  input logic ${widthDecl} ${signalName}`;
-      }
-    });
-    
-    svaCode += `\n);\n\n`;
-    
-    // Generate efficient, non-redundant assertions based on protocol analysis
-    svaCode += this._generateOptimizedAssertions(protocolAnalysis, clockSignal, timeoutCycles, config);
 
-    svaCode += `endmodule\n`;
-    
     return svaCode;
+  }
+
+  // Phase 2: Node analysis methods (skeleton)
+  private _parseNodes(signals: any[]): Map<string, any> {
+    const nodeMap = new Map<string, any>();
+    
+    // TODO: Implement node parsing
+    // Extract node IDs from signal[].node strings
+    // Map to signal names and timing positions
+    
+    return nodeMap;
+  }
+
+  // Phase 3: Edge analysis methods (skeleton)
+  private _parseEdges(edges: string[]): any[] {
+    const parsedEdges: any[] = [];
+    
+    // TODO: Implement edge parsing
+    // Parse Sharp Lines and Splines syntax
+    // Classify edge types and operators
+    
+    return parsedEdges;
+  }
+
+  // Phase 4: SystemVerilog generation (skeleton)
+  private _generateSystemVerilogModule(nodeMap: Map<string, any>, edges: any[]): string {
+    let moduleCode = `module wavedrom_assertions (\n`;
+    moduleCode += `  input logic clk,\n`;
+    moduleCode += `  input logic rst_n\n`;
+    moduleCode += `  // TODO: Add signal declarations\n`;
+    moduleCode += `);\n\n`;
+    
+    moduleCode += `  // TODO: Generate assertions from node/edge data\n\n`;
+    
+    moduleCode += `endmodule\n`;
+    
+    return moduleCode;
   }
 
   private _parseExtendedConfig(jsonData: any): any {
