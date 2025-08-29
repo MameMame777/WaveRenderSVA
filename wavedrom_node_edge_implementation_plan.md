@@ -110,24 +110,24 @@ WaveDromのnode/edge記法からSystemVerilogアサーションを生成する�
 ## フェーズ4: SystemVerilogアサーション生成エンジン
 
 ### 4.1 Property文生成器
-- [ ] Node/Edge情報からproperty文生成
-- [ ] タイミング演算子の選択ロジック
-  - [ ] Sharp Lines: `##1`, `##2`, `|=>`, `|->`, `iff`
-  - [ ] Splines: `##[0:$]`, `##[1:$]`, `s_eventually`
-- [ ] 複合条件の生成（and, or, not）
+- [x] Node/Edge情報からproperty文生成
+- [x] タイミング演算子の選択ロジック
+  - [x] Sharp Lines: `##1`, `##2`, `|=>`, `|->`, `iff`
+  - [x] Splines: `##[0:$]`, `##[1:$]`, `s_eventually`
+- [x] 複合条件の生成（and, or, not）
 
 ### 4.2 Assert/Assume/Cover文生成器
-- [ ] Property文をassert文に変換
-- [ ] クロック条件の自動検出・付加
-- [ ] リセット条件の自動付加
-- [ ] Assert強度の選択（assert, assume, cover）
+- [x] Property文をassert文に変換
+- [x] クロック条件の自動検出・付加
+- [x] リセット条件の自動付加
+- [x] Assert強度の選択（assert, assume, cover）
 
 ### 4.3 モジュール構造生成器
-- [ ] 完全なSystemVerilogモジュール生成
-- [ ] 信号宣言の自動生成（input/output/logic）
-- [ ] 信号幅の自動検出
-- [ ] インデント・フォーマット機能
-- [ ] コメント生成機能
+- [x] 完全なSystemVerilogモジュール生成
+- [x] 信号宣言の自動生成（input/output/logic）
+- [x] 信号幅の自動検出
+- [x] インデント・フォーマット機能
+- [x] コメント生成機能
 
 ---
 

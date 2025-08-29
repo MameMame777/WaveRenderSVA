@@ -759,42 +759,196 @@ class SVAGeneratorPanel {
     return null;
   }
 
-  // Phase 4: SystemVerilog generation
+  // Phase 4: Advanced SystemVerilog Generation Engine
   private _generateSystemVerilogModule(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[]): string {
-    let moduleCode = `module wavedrom_assertions (\n`;
-    moduleCode += `  input logic clk,\n`;
-    moduleCode += `  input logic rst_n`;
+    // Phase 4.1: Enhanced module structure generation
+    const moduleInfo = this._analyzeModuleRequirements(nodeMap, edges);
     
-    // Extract unique signal names from nodes
-    const signalNames = new Set<string>();
-    nodeMap.forEach(node => signalNames.add(node.signalName));
+    let moduleCode = `// ========================================\n`;
+    moduleCode += `// WaveDrom-generated SystemVerilog Assertions\n`;
+    moduleCode += `// Generated: ${new Date().toISOString()}\n`;
+    moduleCode += `// Sharp Lines: 厳密なタイミング制約\n`;
+    moduleCode += `// Splines: 柔軟なタイミング制約\n`;
+    moduleCode += `// ========================================\n\n`;
     
-    // Add signal declarations
-    signalNames.forEach(signalName => {
-      if (signalName !== 'clk' && signalName !== 'rst_n') {
-        moduleCode += `,\n  input logic ${signalName}`;
+    // Phase 4.2: Module declaration with auto-detected signals
+    moduleCode += `module ${moduleInfo.moduleName} (\n`;
+    moduleCode += `  input logic ${moduleInfo.clockSignal},\n`;
+    moduleCode += `  input logic ${moduleInfo.resetSignal}`;
+    
+    // Phase 4.3: Auto-generated signal declarations
+    moduleInfo.signals.forEach(signal => {
+      if (signal.name !== moduleInfo.clockSignal && signal.name !== moduleInfo.resetSignal) {
+        moduleCode += `,\n  ${signal.direction} ${signal.type} ${signal.name}`;
       }
     });
     
     moduleCode += `\n);\n\n`;
     
-    // Generate assertions based on edges
+    // Phase 4.4: Generate properties, assertions, assumptions, and covers
+    const properties = this._generateProperties(nodeMap, edges);
+    const assertions = this._generateAssertions(properties);
+    const assumptions = this._generateAssumptions(properties);
+    const covers = this._generateCovers(properties);
+    
+    moduleCode += properties;
+    moduleCode += assertions;
+    moduleCode += assumptions; 
+    moduleCode += covers;
+    
+    moduleCode += `endmodule\n`;
+    
+    return moduleCode;
+  }
+
+  // Phase 4.1: Analyze module requirements from nodes and edges
+  private _analyzeModuleRequirements(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[]): any {
+    const signals = new Map<string, any>();
+    
+    // Extract signal information from nodes
+    nodeMap.forEach(node => {
+      if (!signals.has(node.signalName)) {
+        signals.set(node.signalName, {
+          name: node.signalName,
+          direction: 'input',
+          type: 'logic',
+          width: '[0:0]' // Default width, could be enhanced to detect actual width
+        });
+      }
+    });
+    
+    return {
+      moduleName: 'wavedrom_assertions',
+      clockSignal: 'clk',
+      resetSignal: 'rst_n',
+      signals: Array.from(signals.values())
+    };
+  }
+
+  // Phase 4.2: Generate property definitions
+  private _generateProperties(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[]): string {
+    let propertyCode = `  // ========================================\n`;
+    propertyCode += `  // Property Definitions\n`;
+    propertyCode += `  // ========================================\n\n`;
+    
     edges.forEach((edge, index) => {
       const sourceNode = nodeMap.get(edge.sourceNode);
       const targetNode = nodeMap.get(edge.targetNode);
       
       if (sourceNode && targetNode) {
-        const assertionName = `assert_${edge.sourceNode}_to_${edge.targetNode}_${index}`;
-        const assertion = this._generateAssertion(sourceNode, targetNode, edge);
+        const propertyName = `prop_${edge.sourceNode}_to_${edge.targetNode}_${index}`;
+        const propertyBody = this._generatePropertyBody(sourceNode, targetNode, edge);
         
-        moduleCode += `  // ${edge.label || 'Timing relationship'}\n`;
-        moduleCode += `  ${assertionName}: ${assertion}\n\n`;
+        propertyCode += `  // ${edge.description || edge.label || 'Timing relationship'}\n`;
+        propertyCode += `  property ${propertyName};\n`;
+        propertyCode += `    @(posedge clk) disable iff (!rst_n)\n`;
+        propertyCode += `    ${propertyBody};\n`;
+        propertyCode += `  endproperty\n\n`;
       }
     });
     
-    moduleCode += `endmodule\n`;
+    return propertyCode;
+  }
+
+  // Phase 4.2: Generate property body based on edge type and timing
+  private _generatePropertyBody(sourceNode: NodeInfo, targetNode: NodeInfo, edge: EdgeInfo): string {
+    const sourceEvent = this._getSystemVerilogEvent(sourceNode);
+    const targetEvent = this._getSystemVerilogEvent(targetNode);
+    const timingDiff = targetNode.position - sourceNode.position;
     
-    return moduleCode;
+    // Use existing advanced assertion logic but return only the property body
+    if (edge.edgeType === 'sharp_line') {
+      return this._generateSharpLinePropertyBody(sourceEvent, targetEvent, edge.operator, timingDiff);
+    } else if (edge.edgeType === 'spline') {
+      return this._generateSplinePropertyBody(sourceEvent, targetEvent, edge.operator, timingDiff);
+    } else {
+      const timingClause = timingDiff > 0 ? `##${timingDiff}` : '';
+      return `${sourceEvent} |-> ${timingClause} ${targetEvent}`;
+    }
+  }
+
+  // Phase 4.2: Sharp Lines property body generation
+  private _generateSharpLinePropertyBody(sourceEvent: string, targetEvent: string, operator: string, timingDiff: number): string {
+    switch (operator) {
+      case '<->':  return `${sourceEvent} iff ${targetEvent}`;
+      case '-|->': return `${sourceEvent} |=> ##${Math.max(timingDiff, 1)} ${targetEvent}`;
+      case '-|>':  return `${sourceEvent} |=> ${targetEvent}`;
+      case '|->':  return `${sourceEvent} |-> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
+      case '-|-':  return `${sourceEvent} |=> ##1 ${targetEvent}`;
+      case '->':   return `${sourceEvent} |=> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
+      case '-|':   return `${sourceEvent} |=> ${targetEvent}`;
+      case '+':    return `${sourceEvent} and ${targetEvent}`;
+      case '-':    return `${sourceEvent} |-> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
+      default:     return `${sourceEvent} |-> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
+    }
+  }
+
+  // Phase 4.2: Splines property body generation  
+  private _generateSplinePropertyBody(sourceEvent: string, targetEvent: string, operator: string, timingDiff: number): string {
+    switch (operator) {
+      case '<-~>': return `${sourceEvent} |=> ##[0:${Math.max(timingDiff + 2, 3)}] ${targetEvent}`;
+      case '<~>':  return `${sourceEvent} |-> s_eventually ${targetEvent}`;
+      case '-~>':  return `${sourceEvent} |=> ##[1:${Math.max(timingDiff, 1) + 2}] ${targetEvent}`;
+      case '~->':  return `${sourceEvent} |-> s_eventually ${targetEvent}`;
+      case '-~':   return `${sourceEvent} |=> ##[0:${Math.max(timingDiff + 1, 2)}] ${targetEvent}`;
+      case '~':    return `${sourceEvent} |=> s_eventually ${targetEvent}`;
+      default:     return `${sourceEvent} |-> s_eventually ${targetEvent}`;
+    }
+  }
+
+  // Phase 4.3: Generate assert statements
+  private _generateAssertions(propertyCode: string): string {
+    let assertCode = `  // ========================================\n`;
+    assertCode += `  // Assertion Statements\n`;
+    assertCode += `  // ========================================\n\n`;
+    
+    // Extract property names from property code and generate assert statements
+    const propertyMatches = propertyCode.match(/property\s+(\w+);/g);
+    if (propertyMatches) {
+      propertyMatches.forEach(match => {
+        const propertyName = match.match(/property\s+(\w+);/)?.[1];
+        if (propertyName) {
+          assertCode += `  assert_${propertyName}: assert property (${propertyName})\n`;
+          assertCode += `    else $fatal(1, "Assertion failed: ${propertyName}");\n\n`;
+        }
+      });
+    }
+    
+    return assertCode;
+  }
+
+  // Phase 4.3: Generate assume statements
+  private _generateAssumptions(propertyCode: string): string {
+    let assumeCode = `  // ========================================\n`;
+    assumeCode += `  // Assumption Statements (for input constraints)\n`;
+    assumeCode += `  // ========================================\n\n`;
+    
+    // Generate basic assumptions for reset and clock
+    assumeCode += `  // Basic system assumptions\n`;
+    assumeCode += `  assume_reset_eventually: assume property (@(posedge clk) ##[0:10] rst_n);\n`;
+    assumeCode += `  assume_clock_running: assume property (@(posedge clk) 1'b1);\n\n`;
+    
+    return assumeCode;
+  }
+
+  // Phase 4.3: Generate cover statements
+  private _generateCovers(propertyCode: string): string {
+    let coverCode = `  // ========================================\n`;
+    coverCode += `  // Coverage Statements (for verification)\n`;
+    coverCode += `  // ========================================\n\n`;
+    
+    // Extract property names and generate cover statements
+    const propertyMatches = propertyCode.match(/property\s+(\w+);/g);
+    if (propertyMatches) {
+      propertyMatches.forEach(match => {
+        const propertyName = match.match(/property\s+(\w+);/)?.[1];
+        if (propertyName) {
+          coverCode += `  cover_${propertyName}: cover property (${propertyName});\n`;
+        }
+      });
+    }
+    
+    return coverCode;
   }
 
   // Phase 3: Advanced SystemVerilog assertion generation based on design guidelines
