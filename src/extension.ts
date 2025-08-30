@@ -445,7 +445,7 @@ class SVAGeneratorPanel {
   private readonly _panel: vscode.WebviewPanel;
   private readonly _extensionPath: string;
   private _disposables: vscode.Disposable[] = [];
-  private _currentConfig: any = null;  // Store current configuration
+  private _currentConfig: any = null;
 
   public static createOrShow(extensionPath: string) {
     const activeEditor = vscode.window.activeTextEditor;
@@ -549,33 +549,32 @@ class SVAGeneratorPanel {
   }
 
   private _generateSVAFromJSON(jsonData: any): string {
-    // Generate SystemVerilog Assertions from WaveDrom Node/Edge syntax
+    // Generate SystemVerilog Assertions from WaveDrom edge/node/comment syntax
     return this._generateSVAFromWaveDrom(jsonData);
   }
 
   private _generateSVAFromWaveDrom(jsonData: any): string {
-    let svaCode = `// SystemVerilog Assertions generated from WaveDrom Node/Edge syntax\n`;
+    let svaCode = `// SystemVerilog Assertions generated from WaveDrom edge/node/comment syntax\n`;
     svaCode += `// Generated on ${new Date().toISOString()}\n`;
-    svaCode += `// Based on WaveDrom Sharp Lines and Splines specification\n\n`;
+    svaCode += `// Using WaveDrom Sharp Lines and Splines for timing relationships\n\n`;
     
     // Basic JSON validation
     if (!jsonData.signal || !Array.isArray(jsonData.signal)) {
       return svaCode + "// Error: No valid signal data found in JSON\n";
     }
 
-    if (!jsonData.edge || !Array.isArray(jsonData.edge)) {
-      return svaCode + "// Error: No edge data found in JSON - WaveDrom node/edge syntax required\n";
-    }
-
     try {
-      // Phase 2: Node analysis
+      // Phase 1: Parse nodes from signal definitions
       const nodeMap = this._parseNodes(jsonData.signal);
       
-      // Phase 3: Edge analysis
-      const edges = this._parseEdges(jsonData.edge);
+      // Phase 2: Parse edges if they exist
+      const edges = jsonData.edge ? this._parseEdges(jsonData.edge) : [];
       
-      // Phase 4: SystemVerilog generation
-      svaCode += this._generateSystemVerilogModule(nodeMap, edges);
+      // Phase 3: Extract comments for additional assertion hints
+      const comments = this._extractComments(jsonData);
+      
+      // Phase 4: Generate SystemVerilog module
+      svaCode += this._generateSystemVerilogModule(nodeMap, edges, comments);
       
     } catch (error) {
       svaCode += `// Error during WaveDrom processing: ${error}\n`;
@@ -682,32 +681,32 @@ class SVAGeneratorPanel {
     const edgePart = parts[0];
     const label = parts.length > 1 ? parts.slice(1).join(' ') : undefined;
 
-    // Phase 3: Comprehensive Sharp Lines patterns (厳密なタイミング制約)
+    // Sharp Lines patterns (strict timing constraints)
     const sharpLinePatterns = [
-      { pattern: /<->/, operator: '<->', type: 'bidirectional_sharp', description: '厳密な双方向関係' },
-      { pattern: /<-\|-/, operator: '<-|-', type: 'reverse_sharp_end', description: '逆方向厳密終端' },
-      { pattern: /-\|\->/, operator: '-|->', type: 'sharp_line_arrow', description: '厳密な遅延関係' },
-      { pattern: /-\|>/, operator: '-|>', type: 'sharp_line_simple', description: '短い厳密遅延' },
-      { pattern: /\|->/, operator: '|->', type: 'conditional_sharp', description: '条件付き厳密関係' },
-      { pattern: /-\|-/, operator: '-|-', type: 'one_cycle_delay', description: '1サイクル遅延' },
-      { pattern: /->/, operator: '->', type: 'strict_direction', description: '厳密な方向性' },
-      { pattern: /-\|/, operator: '-|', type: 'immediate_causality', description: '即座の因果関係' },
-      { pattern: /-/, operator: '-', type: 'basic_connection', description: '基本接続' },
-      { pattern: /\+/, operator: '+', type: 'logical_and', description: '論理AND関係' }
+      { pattern: /<->/, operator: '<->', type: 'bidirectional_sharp', description: 'Strict bidirectional relationship' },
+      { pattern: /<-\|-/, operator: '<-|-', type: 'reverse_sharp_end', description: 'Reverse strict endpoint' },
+      { pattern: /-\|\->/, operator: '-|->', type: 'sharp_line_arrow', description: 'Strict delay relationship' },
+      { pattern: /-\|>/, operator: '-|>', type: 'sharp_line_simple', description: 'Short strict delay' },
+      { pattern: /\|->/, operator: '|->', type: 'conditional_sharp', description: 'Conditional strict relationship' },
+      { pattern: /-\|-/, operator: '-|-', type: 'one_cycle_delay', description: '1 cycle delay' },
+      { pattern: /->/, operator: '->', type: 'strict_direction', description: 'Strict direction' },
+      { pattern: /-\|/, operator: '-|', type: 'immediate_causality', description: 'Immediate causality' },
+      { pattern: /-/, operator: '-', type: 'basic_connection', description: 'Basic connection' },
+      { pattern: /\+/, operator: '+', type: 'logical_and', description: 'Logical AND relationship' }
     ];
 
-    // Phase 3: Comprehensive Splines patterns (柔軟なタイミング制約)
+    // Splines patterns (flexible timing constraints)
     const splinePatterns = [
-      { pattern: /<-~>/, operator: '<-~>', type: 'wide_bidirectional_spline', description: '広範囲双方向' },
-      { pattern: /<~>/, operator: '<~>', type: 'bidirectional_spline', description: '柔軟な双方向関係' },
-      { pattern: /<~-/, operator: '<~-', type: 'reverse_spline', description: '逆方向柔軟' },
-      { pattern: /-~>/, operator: '-~>', type: 'flexible_delay', description: '柔軟な遅延関係' },
-      { pattern: /~->/, operator: '~->', type: 'flexible_direction', description: '柔軟な方向性' },
-      { pattern: /-~/, operator: '-~', type: 'flexible_relation', description: '柔軟な関係' },
-      { pattern: /~/, operator: '~', type: 'flexible_connection', description: '柔軟な接続' }
+      { pattern: /<-~>/, operator: '<-~>', type: 'wide_bidirectional_spline', description: 'Wide bidirectional' },
+      { pattern: /<~>/, operator: '<~>', type: 'bidirectional_spline', description: 'Flexible bidirectional relationship' },
+      { pattern: /<~-/, operator: '<~-', type: 'reverse_spline', description: 'Reverse flexible' },
+      { pattern: /-~>/, operator: '-~>', type: 'flexible_delay', description: 'Flexible delay relationship' },
+      { pattern: /~->/, operator: '~->', type: 'flexible_direction', description: 'Flexible direction' },
+      { pattern: /-~/, operator: '-~', type: 'flexible_relation', description: 'Flexible relationship' },
+      { pattern: /~/, operator: '~', type: 'flexible_connection', description: 'Flexible connection' }
     ];
 
-    // Try to match sharp line patterns first (order matters for correct precedence)
+    // Try to match sharp line patterns first
     for (const { pattern, operator, type, description } of sharpLinePatterns) {
       const match = edgePart.match(new RegExp(`(.+)${pattern.source}(.+)`));
       if (match) {
@@ -751,24 +750,69 @@ class SVAGeneratorPanel {
     return null;
   }
 
-  // Phase 4: Advanced SystemVerilog Generation Engine
-  private _generateSystemVerilogModule(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[]): string {
-    // Phase 4.1: Enhanced module structure generation
+  // Extract comments from JSON for assertion hints
+  private _extractComments(jsonData: any): string[] {
+    const comments: string[] = [];
+    
+    // Look for head/foot text that might contain assertion hints
+    if (jsonData.head && jsonData.head.text) {
+      comments.push(`head: ${jsonData.head.text}`);
+    }
+    
+    if (jsonData.foot && jsonData.foot.text) {
+      comments.push(`foot: ${jsonData.foot.text}`);
+    }
+    
+    // Look for signal-level comments in data arrays
+    if (jsonData.signal) {
+      jsonData.signal.forEach((signal: any, index: number) => {
+        if (signal.data && Array.isArray(signal.data)) {
+          signal.data.forEach((dataItem: any, dataIndex: number) => {
+            if (typeof dataItem === 'string' && dataItem.includes('//')) {
+              comments.push(`signal[${index}].data[${dataIndex}]: ${dataItem}`);
+            }
+          });
+        }
+      });
+    }
+    
+    // Look for edge labels that might contain assertion hints
+    if (jsonData.edge) {
+      jsonData.edge.forEach((edge: any, index: number) => {
+        if (typeof edge === 'string' && edge.includes(' ')) {
+          const parts = edge.split(' ');
+          if (parts.length > 1) {
+            const label = parts.slice(1).join(' ');
+            comments.push(`edge[${index}]: ${label}`);
+          }
+        }
+      });
+    }
+    
+    return comments;
+  }
+
+  // Generate SystemVerilog module from nodes, edges, and comments
+  private _generateSystemVerilogModule(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[], comments?: string[]): string {
+    // Module structure generation
     const moduleInfo = this._analyzeModuleRequirements(nodeMap, edges);
     
     let moduleCode = `// ========================================\n`;
     moduleCode += `// WaveDrom-generated SystemVerilog Assertions\n`;
     moduleCode += `// Generated: ${new Date().toISOString()}\n`;
-    moduleCode += `// Sharp Lines: 厳密なタイミング制約\n`;
-    moduleCode += `// Splines: 柔軟なタイミング制約\n`;
+    moduleCode += `// Sharp Lines: Strict timing constraints\n`;
+    moduleCode += `// Splines: Flexible timing constraints\n`;
+    if (comments && comments.length > 0) {
+      moduleCode += `// Comments: ${comments.join(', ')}\n`;
+    }
     moduleCode += `// ========================================\n\n`;
     
-    // Phase 4.2: Module declaration with auto-detected signals
+    // Module declaration
     moduleCode += `module ${moduleInfo.moduleName} (\n`;
     moduleCode += `  input logic ${moduleInfo.clockSignal},\n`;
     moduleCode += `  input logic ${moduleInfo.resetSignal}`;
     
-    // Phase 4.3: Auto-generated signal declarations
+    // Signal declarations
     moduleInfo.signals.forEach(signal => {
       if (signal.name !== moduleInfo.clockSignal && signal.name !== moduleInfo.resetSignal) {
         moduleCode += `,\n  ${signal.direction} ${signal.type} ${signal.name}`;
@@ -777,23 +821,94 @@ class SVAGeneratorPanel {
     
     moduleCode += `\n);\n\n`;
     
-    // Phase 4.4: Generate properties, assertions, assumptions, and covers
-    const properties = this._generateProperties(nodeMap, edges);
-    const assertions = this._generateAssertions(properties);
-    const assumptions = this._generateAssumptions(properties);
-    const covers = this._generateCovers(properties);
-    
-    moduleCode += properties;
-    moduleCode += assertions;
-    moduleCode += assumptions; 
-    moduleCode += covers;
+    // Generate properties and assertions
+    moduleCode += this._generateEdgeBasedProperties(nodeMap, edges, comments);
     
     moduleCode += `endmodule\n`;
     
     return moduleCode;
   }
 
-  // Phase 4.1: Analyze module requirements from nodes and edges
+  // Generate edge-based properties and assertions
+  private _generateEdgeBasedProperties(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[], comments?: string[]): string {
+    let propertyCode = `  // ========================================\n`;
+    propertyCode += `  // Edge-based Property Definitions\n`;
+    propertyCode += `  // ========================================\n\n`;
+    
+    // Generate properties from edges
+    edges.forEach((edge, index) => {
+      const sourceNode = nodeMap.get(edge.sourceNode);
+      const targetNode = nodeMap.get(edge.targetNode);
+      
+      if (sourceNode && targetNode) {
+        const propertyName = `edge_${edge.sourceNode}_to_${edge.targetNode}_${index}`;
+        const propertyBody = this._generatePropertyBody(sourceNode, targetNode, edge);
+        
+        propertyCode += `  // ${edge.description || edge.label || 'Timing relationship'}\n`;
+        propertyCode += `  property ${propertyName};\n`;
+        propertyCode += `    @(posedge clk) disable iff (!rst_n)\n`;
+        propertyCode += `    ${propertyBody};\n`;
+        propertyCode += `  endproperty\n`;
+        propertyCode += `  ${propertyName}_a: assert property(${propertyName})\n`;
+        propertyCode += `    else $error("[SVA] Edge timing violation: %s -> %s at time %0t (operator: ${edge.operator})", "${edge.sourceNode}", "${edge.targetNode}", $time);\n\n`;
+      }
+    });
+    
+    // Generate properties from comments if they contain timing hints
+    if (comments && comments.length > 0) {
+      propertyCode += `  // Comment-derived properties\n`;
+      comments.forEach((comment, index) => {
+        const timing = this._extractTimingFromComment(comment);
+        if (timing) {
+          propertyCode += `  // From comment: ${comment}\n`;
+          propertyCode += `  property comment_timing_${index};\n`;
+          propertyCode += `    @(posedge clk) disable iff (!rst_n)\n`;
+          propertyCode += `    ${timing};\n`;
+          propertyCode += `  endproperty\n`;
+          propertyCode += `  comment_timing_${index}_a: assert property(comment_timing_${index});\n\n`;
+        }
+      });
+    }
+    
+    // If no edges found, generate basic node-based assertions
+    if (edges.length === 0) {
+      propertyCode += `  // No edges found - generating basic node assertions\n`;
+      nodeMap.forEach((node, nodeId) => {
+        const event = this._getSystemVerilogEvent(node);
+        propertyCode += `  // Node ${nodeId} assertion\n`;
+        propertyCode += `  property node_${nodeId}_event;\n`;
+        propertyCode += `    @(posedge clk) disable iff (!rst_n)\n`;
+        propertyCode += `    ${event} |-> 1'b1;\n`;
+        propertyCode += `  endproperty\n`;
+        propertyCode += `  node_${nodeId}_a: assert property(node_${nodeId}_event);\n\n`;
+      });
+    }
+    
+    return propertyCode;
+  }
+
+  // Extract timing constraints from comments
+  private _extractTimingFromComment(comment: string): string | null {
+    // Look for timing patterns in comments like "t1", "2 cycles", "within 5ms" etc.
+    const timingPatterns = [
+      { pattern: /(\w+)\s+within\s+(\d+)\s*cycles?/i, format: '$1 |-> ##[1:$2] 1\'b1' },
+      { pattern: /(\w+)\s+after\s+(\d+)\s*cycles?/i, format: '$1 |-> ##$2 1\'b1' },
+      { pattern: /t(\d+)/i, format: '1\'b1 |-> ##$1 1\'b1' },
+      { pattern: /delay\s+(\d+)/i, format: '1\'b1 |-> ##$1 1\'b1' },
+      { pattern: /(\d+)\s*ms/i, format: '1\'b1 |-> ##[$1*1000:$1*2000] 1\'b1' }
+    ];
+    
+    for (const { pattern, format } of timingPatterns) {
+      const match = comment.match(pattern);
+      if (match) {
+        return format.replace(/\$(\d+)/g, (_, num) => match[parseInt(num)] || '1');
+      }
+    }
+    
+    return null;
+  }
+
+  // Analyze module requirements from nodes and edges
   private _analyzeModuleRequirements(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[]): any {
     const signals = new Map<string, any>();
     
@@ -817,38 +932,13 @@ class SVAGeneratorPanel {
     };
   }
 
-  // Phase 4.2: Generate property definitions
-  private _generateProperties(nodeMap: Map<string, NodeInfo>, edges: EdgeInfo[]): string {
-    let propertyCode = `  // ========================================\n`;
-    propertyCode += `  // Property Definitions\n`;
-    propertyCode += `  // ========================================\n\n`;
-    
-    edges.forEach((edge, index) => {
-      const sourceNode = nodeMap.get(edge.sourceNode);
-      const targetNode = nodeMap.get(edge.targetNode);
-      
-      if (sourceNode && targetNode) {
-        const propertyName = `prop_${edge.sourceNode}_to_${edge.targetNode}_${index}`;
-        const propertyBody = this._generatePropertyBody(sourceNode, targetNode, edge);
-        
-        propertyCode += `  // ${edge.description || edge.label || 'Timing relationship'}\n`;
-        propertyCode += `  property ${propertyName};\n`;
-        propertyCode += `    @(posedge clk) disable iff (!rst_n)\n`;
-        propertyCode += `    ${propertyBody};\n`;
-        propertyCode += `  endproperty\n\n`;
-      }
-    });
-    
-    return propertyCode;
-  }
-
-  // Phase 4.2: Generate property body based on edge type and timing
+  // Generate property body based on edge type and timing
   private _generatePropertyBody(sourceNode: NodeInfo, targetNode: NodeInfo, edge: EdgeInfo): string {
     const sourceEvent = this._getSystemVerilogEvent(sourceNode);
     const targetEvent = this._getSystemVerilogEvent(targetNode);
     const timingDiff = targetNode.position - sourceNode.position;
     
-    // Use existing advanced assertion logic but return only the property body
+    // Generate assertion based on edge type and operator
     if (edge.edgeType === 'sharp_line') {
       return this._generateSharpLinePropertyBody(sourceEvent, targetEvent, edge.operator, timingDiff);
     } else if (edge.edgeType === 'spline') {
@@ -859,180 +949,34 @@ class SVAGeneratorPanel {
     }
   }
 
-  // Phase 4.2: Sharp Lines property body generation
+  // Sharp Lines property body generation - LRM準拠版
   private _generateSharpLinePropertyBody(sourceEvent: string, targetEvent: string, operator: string, timingDiff: number): string {
     switch (operator) {
-      case '<->':  return `${sourceEvent} iff ${targetEvent}`;
+      case '<->':  return `(${sourceEvent} == ${targetEvent})`; // 同値関係（双方向ではない）
       case '-|->': return `${sourceEvent} |=> ##${Math.max(timingDiff, 1)} ${targetEvent}`;
       case '-|>':  return `${sourceEvent} |=> ${targetEvent}`;
       case '|->':  return `${sourceEvent} |-> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
       case '-|-':  return `${sourceEvent} |=> ##1 ${targetEvent}`;
       case '->':   return `${sourceEvent} |=> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
       case '-|':   return `${sourceEvent} |=> ${targetEvent}`;
-      case '+':    return `${sourceEvent} and ${targetEvent}`;
-      case '-':    return `${sourceEvent} |-> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
+      case '+':    return `(${sourceEvent} && ${targetEvent})`;
+      case '-':    return `${sourceEvent} |=> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
       default:     return `${sourceEvent} |-> ${timingDiff > 0 ? `##${timingDiff}` : ''} ${targetEvent}`;
     }
   }
 
-  // Phase 4.2: Splines property body generation  
+  // Splines property body generation - LRM準拠版
   private _generateSplinePropertyBody(sourceEvent: string, targetEvent: string, operator: string, timingDiff: number): string {
     switch (operator) {
       case '<-~>': return `${sourceEvent} |=> ##[0:${Math.max(timingDiff + 2, 3)}] ${targetEvent}`;
-      case '<~>':  return `${sourceEvent} |-> s_eventually ${targetEvent}`;
+      case '<~>':  return `${sourceEvent} |-> ##[0:$] ${targetEvent}`; // weak eventually
       case '-~>':  return `${sourceEvent} |=> ##[1:${Math.max(timingDiff, 1) + 2}] ${targetEvent}`;
-      case '~->':  return `${sourceEvent} |-> s_eventually ${targetEvent}`;
+      case '~->':  return `${sourceEvent} |-> ##[0:$] ${targetEvent}`; // weak eventually
       case '-~':   return `${sourceEvent} |=> ##[0:${Math.max(timingDiff + 1, 2)}] ${targetEvent}`;
-      case '~':    return `${sourceEvent} |=> s_eventually ${targetEvent}`;
-      default:     return `${sourceEvent} |-> s_eventually ${targetEvent}`;
-    }
-  }
-
-  // Phase 4.3: Generate assert statements
-  private _generateAssertions(propertyCode: string): string {
-    let assertCode = `  // ========================================\n`;
-    assertCode += `  // Assertion Statements\n`;
-    assertCode += `  // ========================================\n\n`;
-    
-    // Extract property names from property code and generate assert statements
-    const propertyMatches = propertyCode.match(/property\s+(\w+);/g);
-    if (propertyMatches) {
-      propertyMatches.forEach(match => {
-        const propertyName = match.match(/property\s+(\w+);/)?.[1];
-        if (propertyName) {
-          assertCode += `  assert_${propertyName}: assert property (${propertyName})\n`;
-          assertCode += `    else $fatal(1, "Assertion failed: ${propertyName}");\n\n`;
-        }
-      });
-    }
-    
-    return assertCode;
-  }
-
-  // Phase 4.3: Generate assume statements
-  private _generateAssumptions(propertyCode: string): string {
-    let assumeCode = `  // ========================================\n`;
-    assumeCode += `  // Assumption Statements (for input constraints)\n`;
-    assumeCode += `  // ========================================\n\n`;
-    
-    // Generate basic assumptions for reset and clock
-    assumeCode += `  // Basic system assumptions\n`;
-    assumeCode += `  assume_reset_eventually: assume property (@(posedge clk) ##[0:10] rst_n);\n`;
-    assumeCode += `  assume_clock_running: assume property (@(posedge clk) 1'b1);\n\n`;
-    
-    return assumeCode;
-  }
-
-  // Phase 4.3: Generate cover statements
-  private _generateCovers(propertyCode: string): string {
-    let coverCode = `  // ========================================\n`;
-    coverCode += `  // Coverage Statements (for verification)\n`;
-    coverCode += `  // ========================================\n\n`;
-    
-    // Extract property names and generate cover statements
-    const propertyMatches = propertyCode.match(/property\s+(\w+);/g);
-    if (propertyMatches) {
-      propertyMatches.forEach(match => {
-        const propertyName = match.match(/property\s+(\w+);/)?.[1];
-        if (propertyName) {
-          coverCode += `  cover_${propertyName}: cover property (${propertyName});\n`;
-        }
-      });
-    }
-    
-    return coverCode;
-  }
-
-  // Phase 3: Advanced SystemVerilog assertion generation based on design guidelines
-  private _generateAssertion(sourceNode: NodeInfo, targetNode: NodeInfo, edge: EdgeInfo): string {
-    const sourceEvent = this._getSystemVerilogEvent(sourceNode);
-    const targetEvent = this._getSystemVerilogEvent(targetNode);
-    
-    // Calculate timing difference
-    const timingDiff = targetNode.position - sourceNode.position;
-    
-    // Generate assertion based on edge type and operator (Phase 3: Advanced patterns)
-    if (edge.edgeType === 'sharp_line') {
-      return this._generateSharpLineAssertion(sourceEvent, targetEvent, edge.operator, timingDiff);
-    } else if (edge.edgeType === 'spline') {
-      return this._generateSplineAssertion(sourceEvent, targetEvent, edge.operator, timingDiff);
-    } else {
-      // Fallback for simple connections
-      const timingClause = timingDiff > 0 ? `##${timingDiff}` : '';
-      return `assert property (@(posedge clk) disable iff (!rst_n) ${sourceEvent} |-> ${timingClause} ${targetEvent});`;
-    }
-  }
-
-  // Phase 3: Sharp Lines (厳密なタイミング制約) SystemVerilog generation
-  private _generateSharpLineAssertion(sourceEvent: string, targetEvent: string, operator: string, timingDiff: number): string {
-    const baseClause = '@(posedge clk) disable iff (!rst_n)';
-    
-    switch (operator) {
-      case '<->':  // 厳密な双方向関係
-        return `assert property (${baseClause} ${sourceEvent} iff ${targetEvent});`;
-        
-      case '-|->': // 厳密な遅延関係
-        const timing1 = timingDiff > 0 ? `##${timingDiff}` : '##1';
-        return `assert property (${baseClause} ${sourceEvent} |=> ${timing1} ${targetEvent});`;
-        
-      case '-|>':  // 短い厳密遅延
-        return `assert property (${baseClause} ${sourceEvent} |=> ${targetEvent});`;
-        
-      case '|->':  // 条件付き厳密関係
-        const timing2 = timingDiff > 0 ? `##${timingDiff}` : '';
-        return `assert property (${baseClause} ${sourceEvent} |-> ${timing2} ${targetEvent});`;
-        
-      case '-|-':  // 1サイクル遅延
-        return `assert property (${baseClause} ${sourceEvent} |=> ##1 ${targetEvent});`;
-        
-      case '->':   // 厳密な方向性
-        const timing3 = timingDiff > 0 ? `##${timingDiff}` : '';
-        return `assert property (${baseClause} ${sourceEvent} |=> ${timing3} ${targetEvent});`;
-        
-      case '-|':   // 即座の因果関係
-        return `assert property (${baseClause} ${sourceEvent} |=> ${targetEvent});`;
-        
-      case '+':    // 論理AND関係
-        return `assert property (${baseClause} ${sourceEvent} and ${targetEvent});`;
-        
-      case '-':    // 基本接続
-        const timing4 = timingDiff > 0 ? `##${timingDiff}` : '';
-        return `assert property (${baseClause} ${sourceEvent} |-> ${timing4} ${targetEvent});`;
-        
-      default:
-        const timing5 = timingDiff > 0 ? `##${timingDiff}` : '';
-        return `assert property (${baseClause} ${sourceEvent} |-> ${timing5} ${targetEvent});`;
-    }
-  }
-
-  // Phase 3: Splines (柔軟なタイミング制約) SystemVerilog generation
-  private _generateSplineAssertion(sourceEvent: string, targetEvent: string, operator: string, timingDiff: number): string {
-    const baseClause = '@(posedge clk) disable iff (!rst_n)';
-    
-    switch (operator) {
-      case '<-~>': // 広範囲双方向
-        const maxDelay1 = Math.max(timingDiff + 2, 3);
-        return `assert property (${baseClause} ${sourceEvent} |=> ##[0:${maxDelay1}] ${targetEvent});`;
-        
-      case '<~>':  // 柔軟な双方向関係
-        return `assert property (${baseClause} ${sourceEvent} |-> s_eventually ${targetEvent});`;
-        
-      case '-~>':  // 柔軟な遅延関係
-        const flexDelay1 = Math.max(timingDiff, 1);
-        return `assert property (${baseClause} ${sourceEvent} |=> ##[1:${flexDelay1 + 2}] ${targetEvent});`;
-        
-      case '~->':  // 柔軟な方向性
-        return `assert property (${baseClause} ${sourceEvent} |-> s_eventually ${targetEvent});`;
-        
-      case '-~':   // 柔軟な関係
-        const flexDelay2 = Math.max(timingDiff + 1, 2);
-        return `assert property (${baseClause} ${sourceEvent} |=> ##[0:${flexDelay2}] ${targetEvent});`;
-        
-      case '~':    // 柔軟な接続
-        return `assert property (${baseClause} ${sourceEvent} |=> s_eventually ${targetEvent});`;
-        
-      default:
-        return `assert property (${baseClause} ${sourceEvent} |-> s_eventually ${targetEvent});`;
+      case '~-':   return `${sourceEvent} |=> ##[0:${Math.max(timingDiff + 1, 2)}] ${targetEvent}`;
+      case '~>':   return `${sourceEvent} |-> ##[0:$] ${targetEvent}`; // weak eventually
+      case '~':    return `${sourceEvent} |=> ##[0:$] ${targetEvent}`; // strong eventually
+      default:     return `${sourceEvent} |-> ##[0:$] ${targetEvent}`;
     }
   }
 
