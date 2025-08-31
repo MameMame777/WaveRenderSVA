@@ -259,6 +259,12 @@ module waveform_assertions(
 endmodule
 ```
 
+### 📸 Screenshots
+
+![Waveform Render SVA Enhanced Demo](media/demo_2.png)
+
+Waveform rendering with automatic SVA generation showing embedded signal detection
+
 For detailed implementation specifications, see [`WAVEDROM_SVA_MAPPING.md`](WAVEDROM_SVA_MAPPING.md).
 
 ## 🚀 Installation
