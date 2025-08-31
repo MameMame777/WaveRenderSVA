@@ -5,5 +5,4 @@ node_modules/
 out/
 *.vsix
 doc/advice2.md
-output/sample.json
-output/sample.sv
+output/

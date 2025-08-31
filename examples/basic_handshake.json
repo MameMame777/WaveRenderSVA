@@ -1,0 +1,11 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p...", "node": ".abc"},
+    {"name": "req", "wave": "01.0", "node": ".d.e"},
+    {"name": "ack", "wave": "0.10", "node": "..fg"}
+  ],
+  "edge": [
+    "d->f req to ack $&(enable)$", 
+    "f-|>e ack cleanup"
+  ]
+}

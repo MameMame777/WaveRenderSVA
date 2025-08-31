@@ -1,0 +1,13 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.....", "node": ".abcde"},
+    {"name": "enable", "wave": "01....", "node": ".f...."},
+    {"name": "data", "wave": "x.=.=.", "node": "..ghij"},
+    {"name": "valid", "wave": "0.1.0.", "node": "..klm."}
+  ],
+  "edge": [
+    "f~>g enable to data $&(ready)$",
+    "g->k data to valid $|(strobe)$ $!(reset)$",
+    "k-|>m valid cleanup $->(ack)$"
+  ]
+}
