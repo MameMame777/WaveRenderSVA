@@ -1,13 +1,22 @@
-# Waveform Render SVA Enhanced v0.29.0
+# Waveform Render SVA Enhanced v0.30.0
+
+[![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/MameMame777.waveform-render-sva-enhanced?style=flat-square&logo=visual-studio-code&label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)
+[![Visual Studio Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/MameMame777.waveform-render-sva-enhanced?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)
+[![GitHub Release](https://img.shields.io/github/v/release/MameMame777/WaveRenderSVA?style=flat-square&logo=github)](https://github.com/MameMame777/WaveRenderSVA/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
 A VS Code extension that renders waveforms with [WaveDrom](https://github.com/wavedrom/wavedrom) and automatically generates SystemVerilog Assertions (SVA) from JSON waveform descriptions for hardware verification.
 
-## 🎉 What's New in v0.29.0
+**🌟 Now available on [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)!**
 
-- **🚀 Performance Optimized**: 31.6% code reduction (835 lines removed)
-- **🔧 Cleaner Architecture**: Unified SVA generation pipeline
-- **📉 Reduced Memory Footprint**: Faster loading and better performance
-- **✅ Error-Free**: Zero TypeScript compilation issues
+## 🎉 What's New in v0.30.0 - Issue #2 Complete
+
+- **🆕 `<->` Stability Operator**: Generates `$stable() throughout` SystemVerilog syntax
+- **🆕 `<~>` Change Detection Operator**: Generates `$changed()` with timing constraints
+- **�️ Conditional Guards**: Support for `$|(condition)$` and `$&(condition)$` syntax
+- **� SystemVerilog LRM Compliance**: All generated SVA follows IEEE 1800 standard
+- **🧪 Comprehensive Testing**: 34 test cases with 100% success rate
+- **📖 Enhanced Documentation**: Complete test specifications and examples
 
 ## 🙏 Attribution
 
@@ -22,6 +31,8 @@ This project is a **fork and enhancement** of the excellent [waveform-render-vsc
 - ✨ **Advanced SVA patterns**: variable latency, sequences, prohibitions *(new)*
 - 🎯 **Enhanced logical operators**: AND, OR, NOT, IMPLIES support *(new)*
 - 🔧 **WaveDrom edge syntax** for timing relationships *(new)*
+- **🆕 Issue #2 Operators**: `<->` stability and `<~>` change detection *(v0.30.0)*
+- **🧪 Comprehensive Testing**: 34 test cases with automated verification *(v0.30.0)*
 
 ## 🚀 Quick Start
 
@@ -116,14 +127,16 @@ The `examples/` directory contains ready-to-use sample files:
 
 ## 🔧 Enhanced Logical Operators
 
-Enhanced syntax for assertion conditions:
+Enhanced syntax for assertion conditions including **Issue #2 operators**:
 
-| Syntax | Description | Example |
-|--------|-------------|---------|
-| `$&(condition)$` | AND logic | `$&(enable)$` |
-| `$\|(condition)$` | OR logic | `$\|(ready)$` |
-| `$!(condition)$` | NOT logic | `$!(reset)$` |
-| `$->(condition)$` | IMPLIES logic | `$->(valid)$` |
+| Syntax | Description | Example | Status |
+|--------|-------------|---------|--------|
+| `$&(condition)$` | AND logic | `$&(enable)$` | ✅ Stable |
+| `$\|(condition)$` | OR logic | `$\|(ready)$` | ✅ Stable |
+| `$!(condition)$` | NOT logic | `$!(reset)$` | ✅ Stable |
+| `$->(condition)$` | IMPLIES logic | `$->(valid)$` | ✅ Stable |
+| **`<->`** | **Stability operator** | **`<-> $stable(signal)`** | **🆕 v0.30.0** |
+| **`<~>`** | **Change detection** | **`<~> $changed(signal)`** | **🆕 v0.30.0** |
 
 ## 📚 WaveDrom to SVA Mapping Reference
 
@@ -276,16 +289,24 @@ For detailed implementation specifications, see [`WAVEDROM_SVA_MAPPING.md`](WAVE
 
 ## 🚀 Installation
 
-### From VS Code Marketplace
+### From VS Code Marketplace (Recommended)
 
 1. Open VS Code
 2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "Waveform Render SVA Enhanced"
-4. Click Install
+3. Search for "**Waveform Render SVA Enhanced**"
+4. Click **Install**
+
+Or install directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced).
+
+### Command Line Installation
+
+```bash
+code --install-extension MameMame777.waveform-render-sva-enhanced
+```
 
 ### Manual Installation
 
-1. Download the `.vsix` file from [Releases](https://github.com/MameMame777/waveform-render-sva/releases)
+1. Download the `.vsix` file from [GitHub Releases](https://github.com/MameMame777/waveform-render-sva/releases)
 2. Run `code --install-extension waveform-render-sva-enhanced-*.vsix`
 
 ## 🛠️ Development
@@ -334,9 +355,17 @@ node test_verification.js
 ### Test Coverage
 
 - **34 test cases** covering all WaveDrom syntax elements
-- **5/5 operators** fully supported including Issue #2 operators
+- **5/5 operators** fully supported including **Issue #2 operators (`<->`, `<~>`)**
 - **Zero compilation errors** - all generated SVA compiles correctly
-- **Complete Issue #2 implementation** - `<->` and `<~>` operators working
+- **100% success rate** - comprehensive verification with automated testing
+- **Complete Issue #2 implementation** - stability and change detection working
+
+**Test Results Summary:**
+
+- ✅ Properties Generated: 34 SystemVerilog assertions
+- ✅ Operator Support: 5/5 WaveDrom operators (100% coverage)
+- ✅ Warnings: 13 (all expected, design-compliant)
+- ✅ Errors: 0 (complete success)
 
 For detailed test documentation, see:
 
@@ -365,5 +394,18 @@ This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.t
 
 - ✅ **Stable**: Core waveform rendering functionality
 - ✅ **Stable**: Basic SVA generation
+- ✅ **Complete**: Issue #2 operators (`<->`, `<~>`) implementation
+- ✅ **Complete**: Comprehensive test suite (34 test cases)
+- ✅ **Published**: Available on VS Code Marketplace
 - 🚧 **Active Development**: Advanced SVA patterns and edge cases
 - 🔮 **Planned**: UVM integration and advanced verification features
+
+---
+
+## 📈 Version History
+
+| Version | Release Date | Key Features |
+|---------|--------------|--------------|
+| **v0.30.0** | 2025-08-31 | **Issue #2 Complete**: `<->` & `<~>` operators, 34 test cases |
+| v0.29.0 | 2025-08-30 | Performance optimization (31.6% code reduction) |
+| v0.27.0 | 2025-08-29 | Enhanced SVA generation, ESLint integration |
