@@ -1,11 +1,12 @@
 {
   "signal": [
-    {"name": "clk", "wave": "p...", "node": ".abc"},
-    {"name": "req", "wave": "01.0", "node": ".d.e"},
-    {"name": "ack", "wave": "0.10", "node": "..fg"}
+    {"name": "clk", "wave": "p......"},
+    {"name": "req", "wave": "01....0", "node": ".a....."},
+    {"name": "ack", "wave": "0.1..0.", "node": "..b...."},
+    {"name": "data", "wave": "x=..=.x", "data": ["A", "B"], "node": ".c..d.."}
   ],
   "edge": [
-    "d->f req to ack $&(enable)$", 
-    "f-|>e ack cleanup"
+    "a->b $iff (enable)$ req_ack_handshake",
+    "c~>d data_stability"
   ]
 }
