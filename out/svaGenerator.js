@@ -17,6 +17,7 @@ class WaveformToSVAGenerator {
         this.generatedProperties = [];
         this.warnings = [];
         this.errors = [];
+        this.embeddedSignals = new Set(); // Track embedded signals
     }
     /**
    * Main entry point for SVA generation
@@ -30,6 +31,7 @@ class WaveformToSVAGenerator {
             this.generatedProperties = [];
             this.warnings = [];
             this.errors = [];
+            this.embeddedSignals.clear(); // Reset embedded signals
             const data = this.parseWaveDromJSON(waveDromJSON);
             this.extractNodePositions(data.signal);
             const properties = data.edge.map((edge, index) => this.generatePropertyFromEdge(edge, index)).filter(prop => prop !== null);
@@ -304,37 +306,44 @@ class WaveformToSVAGenerator {
                     // $&(condition)$ - AND logic
                     const cleanCondition = conditionText.slice(2, -1).trim();
                     conditions.and.push(cleanCondition);
+                    this.extractSignalsFromCondition(cleanCondition);
                 }
                 else if (conditionText.startsWith('|(') && conditionText.endsWith(')')) {
                     // $|(condition)$ - OR logic
                     const cleanCondition = conditionText.slice(2, -1).trim();
                     conditions.or.push(cleanCondition);
+                    this.extractSignalsFromCondition(cleanCondition);
                 }
                 else if (conditionText.startsWith('!(') && conditionText.endsWith(')')) {
                     // $!(condition)$ - NOT logic
                     const cleanCondition = conditionText.slice(2, -1).trim();
                     conditions.not.push(cleanCondition);
+                    this.extractSignalsFromCondition(cleanCondition);
                 }
                 else if (conditionText.startsWith('->(') && conditionText.endsWith(')')) {
                     // $->(condition)$ - IMPLIES logic
                     const cleanCondition = conditionText.slice(3, -1).trim();
                     conditions.implies.push(cleanCondition);
+                    this.extractSignalsFromCondition(cleanCondition);
                 }
                 else if (conditionText.startsWith('iff(') && conditionText.endsWith(')')) {
                     // $iff(condition)$ - IFF logic (backward compatibility)
                     const cleanCondition = conditionText.slice(4, -1).trim();
                     conditions.and.push(cleanCondition); // Treat as AND for safer semantics
+                    this.extractSignalsFromCondition(cleanCondition);
                 }
                 else if (conditionText.startsWith('iff ')) {
                     // Legacy: "iff condition" pattern
                     const iffContent = conditionText.substring(4).trim();
                     const cleanCondition = iffContent.replace(/^\(|\)$/g, '').trim();
                     conditions.and.push(cleanCondition);
+                    this.extractSignalsFromCondition(cleanCondition);
                 }
                 else if (conditionText.startsWith('disable_iff ')) {
                     const disableContent = conditionText.substring(12).trim();
                     const cleanCondition = disableContent.replace(/^\(|\)$/g, '').trim();
                     conditions.disable_iff.push(cleanCondition);
+                    this.extractSignalsFromCondition(cleanCondition);
                 }
             }
             catch (_error) {
@@ -342,6 +351,33 @@ class WaveformToSVAGenerator {
             }
         }
         return conditions;
+    }
+    /**
+     * Extract signal names from condition strings
+     */
+    extractSignalsFromCondition(condition) {
+        // Match signal names (alphanumeric identifiers)
+        const signalMatches = condition.match(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g);
+        if (signalMatches) {
+            for (const signal of signalMatches) {
+                // Exclude SystemVerilog keywords and common non-signal words
+                if (!this.isSystemVerilogKeyword(signal) && signal !== 'rst_n' && signal !== 'clk') {
+                    this.embeddedSignals.add(signal);
+                }
+            }
+        }
+    }
+    /**
+     * Check if a word is a SystemVerilog keyword
+     */
+    isSystemVerilogKeyword(word) {
+        const keywords = [
+            'and', 'or', 'not', 'iff', 'disable_iff', 'implies', 'throughout',
+            'property', 'endproperty', 'assert', 'assume', 'cover', 'expect',
+            'logic', 'input', 'output', 'module', 'endmodule', 'always',
+            'posedge', 'negedge', 'clock', 'reset', 'begin', 'end'
+        ];
+        return keywords.includes(word.toLowerCase());
     }
     /**
    * Build complete SVA property string - Enhanced version with logical operators
@@ -550,12 +586,15 @@ ${propertyName}_a: assert property(${propertyName})
         };
     }
     /**
-   * Extract signal names from signal array
+   * Extract signal names from signal array and embedded conditions
    */
     extractSignalNames(signals) {
-        return signals
+        const baseSignals = signals
             .filter(signal => signal.name && signal.name !== 'clk') // Exclude clock
             .map(signal => signal.name);
+        // Add embedded signals from conditions
+        const allSignals = [...new Set([...baseSignals, ...Array.from(this.embeddedSignals)])];
+        return allSignals;
     }
     /**
    * Handle generation errors
