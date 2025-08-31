@@ -31,8 +31,8 @@ doc/**
 node_modules/**
 out/test/**
 
-# Media files (except demos)
-media/icon.png
+# Media files (except demos and icon)
+!media/icon.png
 media/icon.xcf
 
 # Others
