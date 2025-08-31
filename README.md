@@ -118,16 +118,148 @@ Enhanced syntax for assertion conditions:
 | `$!(condition)$` | NOT logic | `$!(reset)$` |
 | `$->(condition)$` | IMPLIES logic | `$->(valid)$` |
 
-## 🔗 WaveDrom Edge Syntax
+## 📚 WaveDrom to SVA Mapping Reference
 
-Use WaveDrom edge syntax to define timing relationships:
+### SystemVerilog LRM Compliance
 
-| Pattern | Description | Generated SVA |
-|---------|-------------|---------------|
-| `a->b` | Signal a precedes b | `a \|-> ##1 b` |
-| `a-\|>b` | Sharp timing constraint | `a \|-> ##[1:1] b` |
-| `a~>b` | Flexible timing | `a \|-> ##[1:$] b` |
-| `a<->b` | Bidirectional relationship | `(a \|-> b) and (b \|-> a)` |
+This extension generates IEEE 1800-2017 compliant SystemVerilog assertions with the following key principles:
+
+#### Implication Types
+
+- **Overlapped (`|->`)**: Evaluation starts in the same cycle when antecedent is true
+- **Non-overlapped (`|=>`)**: Evaluation starts in the next cycle after antecedent is true
+
+#### Timing Calculation
+
+- **N**: Position difference between nodes in WaveDrom `node` string
+- **Calculation**: `N = targetNode.position - sourceNode.position`
+
+#### Edge Categories
+
+**Sharp Lines (Precise Timing)**:
+
+```json
+{
+  "edge": [
+    "a->b",     // a |=> ##N b
+    "a-|>b",    // a |=> ##1 b  
+    "a<->b",    // Bidirectional: (a |=> b) and (b |=> a)
+    "a|->b"     // a |-> ##N b
+  ]
+}
+```
+
+**Splines (Flexible Timing)**:
+
+```json
+{
+  "edge": [
+    "a~>b",     // a |-> ##[0:$] b
+    "a-~>b",    // a |=> ##[1:$] b
+    "a<~>b"     // a |=> ##[0:$] b
+  ]
+}
+```
+
+### Complete Mapping Table
+
+| WaveDrom Pattern | SystemVerilog Assertion | Type | Description |
+|------------------|-------------------------|------|-------------|
+| `A->B` | `A \|=> ##N B` | Sharp | Precise N-cycle delay |
+| `A-\|>B` | `A \|=> ##1 B` | Sharp | Next cycle constraint |
+| `A\|->B` | `A \|-> ##N B` | Sharp | Overlapped implication |
+| `A<->B` | `(A \|=> B) and (B \|=> A)` | Sharp | Bidirectional |
+| `A~>B` | `A \|-> ##[0:$] B` | Spline | Eventually (overlapped) |
+| `A-~>B` | `A \|=> ##[1:$] B` | Spline | Eventually (non-overlapped) |
+| `A<~>B` | `A \|=> ##[0:$] B` | Spline | Flexible bidirectional |
+
+#### Conditional Assertions
+
+Use `$...$` syntax for conditions:
+
+```json
+{
+  "edge": [
+    "a->b $iff (enable)$",
+    "c~>d $disable_iff (!rst_n)$"
+  ]
+}
+```
+
+#### Node Events
+
+| Node Type | SystemVerilog Function | Description |
+|-----------|----------------------|-------------|
+| `rising_edge` | `$rose(signal)` | Rising edge detection |
+| `falling_edge` | `$fell(signal)` | Falling edge detection |
+| `data_change` | `$changed(signal)` | Data change detection |
+| `stable` | `$stable(signal)` | Signal stability |
+
+### Advanced Features
+
+#### Error Handling
+
+- **Invalid nodes**: Generates warnings and fallback assertions
+- **Timing conflicts**: Reports negative timing differences
+- **Syntax errors**: Graceful degradation with informative messages
+
+#### Performance Optimization
+
+- **Bounded ranges**: Converts `##[0:$]` to `##[0:100]` for simulation efficiency
+- **Clock domain optimization**: Automatic clock signal detection
+- **Reset handling**: Standard `disable iff (!rst_n)` pattern
+
+### Complete Example
+
+**Input WaveDrom JSON**:
+
+```json
+{
+  "signal": [
+    {"name": "clk", "wave": "p......"},
+    {"name": "req", "wave": "01....0", "node": ".a....."},
+    {"name": "ack", "wave": "0.1..0.", "node": "..b...."},
+    {"name": "data", "wave": "x=..=.x", "data": ["A", "B"], "node": ".c..d.."}
+  ],
+  "edge": [
+    "a->b $iff (enable)$ req_ack_handshake",
+    "c~>d data_stability"
+  ]
+}
+```
+
+**Generated SystemVerilog**:
+
+```systemverilog
+module waveform_assertions(
+  input logic clk,
+  input logic rst_n,
+  input logic enable,
+  input logic req,
+  input logic ack,
+  input logic [7:0] data
+);
+
+  // Request-acknowledge handshake with enable condition
+  property req_ack_handshake_p;
+    @(posedge clk) disable iff (!rst_n)
+    $rose(req) |=> $rose(ack) iff (enable);
+  endproperty
+  req_ack_handshake_a: assert property(req_ack_handshake_p)
+    else $error("[SVA] Handshake violation: req -> ack at time %0t", $time);
+
+  // Data stability check  
+  property data_stability_p;
+    @(posedge clk) disable iff (!rst_n)
+    $changed(data) |-> ##[0:$] $stable(data);
+  endproperty
+  data_stability_a: assert property(data_stability_p)
+    else $error("[SVA] Data stability violation at time %0t", $time);
+
+endmodule
+```
+
+For detailed implementation specifications, see [`WAVEDROM_SVA_MAPPING.md`](WAVEDROM_SVA_MAPPING.md).
 
 ## 🚀 Installation
 
