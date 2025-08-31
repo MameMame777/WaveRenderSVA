@@ -1,0 +1,61 @@
+@startuml
+' Files -> classes mapping
+package "src" {
+  class WaveformToSVAGenerator {
+    +generateSVA(json:String): SVAGenerationResult
+    -parseWaveDromJSON(json:String): WaveDromData
+    -extractNodePositions(signals)
+    -generatePropertyFromEdge(edgeString, index)
+    -parseEdgeString(edgeString)
+    -calculateTiming(src, tgt, operator)
+    -parseConditions(comment)
+  }
+
+  class WaveformRenderPanel {
+    +createOrShow(extensionPath)
+    +toggleLivePreview(extensionPath)
+    +saveAsSvg()
+    +saveAsPng()
+    -_update(fileContents,title)
+    -_getHtmlForWebview(waveformJson,title)
+  }
+
+  class SVAGeneratorPanel {
+    +createOrShow(extensionPath, jsonData?)
+    -_updateWithFileContent()
+    -_updateWithJsonData(jsonData)
+    -_generateSVAFromJSON(jsonData): string
+    -_saveSVAFile(content)
+    -_getHtmlForWebview(svaContent,filename)
+  }
+
+  ' Data / DTOs
+  class NodeInfo
+  class EdgeInfo
+  class SVAGenerationResult
+
+  ' Free functions
+  class handleSVAGenerationResult
+  class saveSVAToFile
+  class generateCompleteSystemVerilogModule
+}
+
+' Relationships
+WaveformRenderPanel --> SVAGeneratorPanel : opens/requests SVA
+SVAGeneratorPanel --> WaveformToSVAGenerator : uses
+handleSVAGenerationResult --> SVAGenerationResult : consumes
+saveSVAToFile --> generateCompleteSystemVerilogModule : calls
+
+' Notes mapping to files
+note right of WaveformToSVAGenerator
+  file: src/svaGenerator.ts
+end note
+
+note right of SVAGeneratorPanel
+  file: src/extension.ts (SVAGeneratorPanel)
+end note
+
+note right of WaveformRenderPanel
+  file: src/extension.ts (WaveformRenderPanel)
+end note
+@enduml

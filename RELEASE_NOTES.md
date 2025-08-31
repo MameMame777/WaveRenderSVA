@@ -1,4 +1,37 @@
-# Release Notes v0.27.0 - Enhanced SVA Generation & Code Quality
+# Release Notes v0.29.0 - Code Optimization & Performance Enhancement
+
+## 🎯 Major Code Cleanup
+
+### 📉 Code Size Reduction
+
+- **Removed unused functions**: Eliminated 21 deprecated functions (835 lines, 31.6% reduction)
+- **Streamlined codebase**: From 2,643 lines to 1,808 lines
+- **Improved maintainability**: Cleaner, more focused implementation
+- **Better performance**: Reduced memory footprint and faster loading
+
+### 🔧 Architectural Improvements
+
+- **Unified SVA generation**: Consolidated to single `WaveformToSVAGenerator` class
+- **Removed legacy code**: Eliminated old WaveDrom direct parsing methods
+- **Modern implementation**: Focus on new, efficient generation pipeline
+- **Error-free compilation**: All TypeScript compilation issues resolved
+
+### 🗑️ Removed Deprecated Functions
+
+- Old WaveDrom parsing functions (`_parseNodes`, `_detectEventType`, `_parseEdges`)
+- Unused signal processing (`_normalizeAndValidateSignals`, `_detectSignalWidth`)
+- Legacy assertion generators (`_generateRequestAckProtocol`, `_generateDataIntegrityAssertions`)
+- Obsolete analysis functions (`_analyzeWaveformDetails`, `_analyzeIndividualWavePattern`)
+
+## ✅ Quality Assurance
+
+- **Zero compilation errors**: Clean TypeScript build
+- **Maintained functionality**: All core features preserved
+- **Improved code clarity**: Easier to understand and maintain
+
+---
+
+## Release Notes v0.27.0 - Enhanced SVA Generation & Code Quality
 
 ## 🎉 Major Improvements
 
