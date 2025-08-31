@@ -1,95 +1,202 @@
 # Waveform Render SVA Enhanced
 
-Render waveforms with [WaveDrom](https://github.com/wavedrom/wavedrom) inside [VSCode](https://code.visualstudio.com/) and generate SystemVerilog Assertions (SVA) from JSON waveform descriptions.
+A VS Code extension that renders waveforms with [WaveDrom](https://github.com/wavedrom/wavedrom) and automatically generates SystemVerilog Assertions (SVA) from JSON waveform descriptions for hardware verification.
 
 ## 🙏 Attribution
 
 This project is a **fork and enhancement** of the excellent [waveform-render-vscode](https://github.com/bmpenuelas/waveform-render-vscode) by **Borja Penuelas (bmpenuelas)**. We extend our gratitude for the solid foundation that made these enhancements possible.
 
-**Features:**
-- 🌊 Render timing diagrams from WaveDrom JSON *(original feature)*
-- ⚡ Generate SystemVerilog Assertions automatically *(enhanced)*
-- 💾 Save generated assertions as .sv files *(new)*
-- 🔄 Live preview mode for waveforms *(original feature)*
-- ✨ Advanced SVA patterns: variable latency, sequences, prohibitions *(new)*
+## ✨ Features
 
-## Usage
+- 🌊 **Render timing diagrams** from WaveDrom JSON *(original feature)*
+- ⚡ **Generate SystemVerilog Assertions** automatically *(enhanced)*
+- 💾 **Save generated assertions** as .sv files *(new)*
+- 🔄 **Live preview mode** for waveforms *(original feature)*
+- ✨ **Advanced SVA patterns**: variable latency, sequences, prohibitions *(new)*
+- 🎯 **Enhanced logical operators**: AND, OR, NOT, IMPLIES support *(new)*
+- 🔧 **WaveDrom edge syntax** for timing relationships *(new)*
 
-📄 Open a .JSON file containing a WaveDrom waveform, like
+## 🚀 Quick Start
+
+### 1. Render Waveforms
+
+📄 Open a .JSON file containing a WaveDrom waveform:
+
 ```json
-{ signal: [
-  { name: "clk",         wave: "p.....|..." },
-  { name: "Data",        wave: "x.345x|=.x", data: ["head", "body", "tail", "data"] },
-  { name: "Request",     wave: "0.1..0|1.0" },
-  {},
-  { name: "Acknowledge", wave: "1.....|01." }
-]}
+{ 
+  "signal": [
+    { "name": "clk",         "wave": "p.....|..." },
+    { "name": "Data",        "wave": "x.345x|=.x", "data": ["head", "body", "tail", "data"] },
+    { "name": "Request",     "wave": "0.1..0|1.0" },
+    {},
+    { "name": "Acknowledge", "wave": "1.....|01." }
+  ]
+}
 ```
 
-<br>
+**Methods to render:**
 
-➡️ click the wave button at the top-right corner
+- ➡️ Click the wave button at the top-right corner
+- 🎹 Press `Ctrl+K` followed by `Ctrl+D`
+- 🔃 Press `Ctrl+K` followed by `Ctrl+L` for live preview
 
-![waveform render vscode button](/media/demo_1.png)
+### 2. Generate SystemVerilog Assertions
 
-*or*
-
-🎹 Press "`Ctrl+K` followed by `Ctrl+D`", or "`Ctrl+Shift+P` followed by `Waveform Render: Draw`" to **draw** the waveform in your editor
-
-*or*
-
-🔃 Press "`Ctrl+K` followed by `Ctrl+L`", or "`Ctrl+Shift+P` followed by `Waveform Render: Toggle Live Preview`" to make the waveform update as you type
-
-<br>
-
-🌈 and you will get a new tab with a nice waveform rendered inside your text editor
-
-![waveform render vscode example](/media/demo_0.png)
-
-## ⚡ SystemVerilog Assertion Generation
-
-**NEW FEATURE**: Generate SystemVerilog assertions from your WaveDrom JSON files!
-
-🔧 Press "`Ctrl+K` followed by `Ctrl+S`", or "`Ctrl+Shift+P` followed by `Waveform Render: Generate SystemVerilog Assertions`" to generate SVA code
-
-📁 The generated assertions will be displayed in a new panel and can be saved as a `.sv` file
+🔧 Press `Ctrl+K` followed by `Ctrl+S` or use Command Palette: `Waveform Render: Generate SystemVerilog Assertions`
 
 **Generated assertions include:**
-- Clock signal patterns
-- Data transition assertions  
-- Signal stability properties
-- Request/acknowledge handshake patterns
 
-Example generated output:
+- Clock signal patterns and frequency checks
+- Data transition assertions with timing constraints
+- Signal stability and setup/hold properties
+- Request/acknowledge handshake patterns
+- Cross-signal timing relationships
+
+## 📋 Example Output
+
 ```systemverilog
 // SystemVerilog Assertions generated from WaveDrom JSON
-module assertion_module;
-  
-  // Assertion for signal: clk
-  property clk_clock_p;
-    @(posedge clk) $rose(clk) |=> $fell(clk);
-  endproperty
-  clk_clock_a: assert property(clk_clock_p);
+// Generated: 2025-08-31T10:30:00.000Z
 
-  // Assertion for signal: Request
-  property Request_transition_p;
-    @(posedge clk) $rose(Request) |-> ##1 $stable(Request);
+module waveform_assertions;
+  
+  // Clock Signal Assertions
+  property clk_clock_period_p;
+    disable iff (!rst_n)
+    @(posedge clk) ##1 (clk == 1'b0) ##1 (clk == 1'b1);
   endproperty
-  Request_transition_a: assert property(Request_transition_p);
+  clk_clock_period_a: assert property(clk_clock_period_p);
+
+  // Data Signal Assertions  
+  property Data_transition_p;
+    @(posedge clk) $changed(Data) |-> ##1 $stable(Data);
+  endproperty
+  Data_transition_a: assert property(Data_transition_p);
+
+  // Request-Acknowledge Handshake
+  property req_ack_handshake_p;
+    @(posedge clk) $rose(Request) |-> ##[1:3] $rose(Acknowledge);
+  endproperty
+  req_ack_handshake_a: assert property(req_ack_handshake_p);
 
 endmodule
 ```
 
-## 💾 Saving the waveform
+## 💾 Saving Waveforms
 
-- You can save the rendered waveform as PNG or SVG by right-clicking the waveform and selecting your preferred format.
-- Or click the `📋copy to clipboard` button in twe waveform pannel to copy the image to your clipboard.
+- You can save the rendered waveform as PNG or SVG by right-clicking the waveform and selecting your preferred format
+- Or click the `📋copy to clipboard` button in the waveform panel to copy the image to your clipboard
 - Or use VSCode commands to save as PNG/SVG:
-    - `Waveform Render: Copy Save as PNG` (`waveformRender.saveAsPng`)
-    - `Waveform Render: Copy Save as SVG` (`waveformRender.saveAsSvg`)
+  - `Waveform Render: Copy Save as PNG` (`waveformRender.saveAsPng`)
+  - `Waveform Render: Copy Save as SVG` (`waveformRender.saveAsSvg`)
 
-<br>
-
-## Syntax
+## 📝 WaveDrom Syntax
 
 You can find the complete WaveDrom syntax [in the WaveDrom schema docs](https://github.com/wavedrom/schema/blob/master/WaveJSON.md).
+
+## 📁 Sample Files
+
+The `examples/` directory contains ready-to-use sample files:
+
+- **`basic_handshake.json`** - Simple request-acknowledge protocol with AND conditions
+- **`advanced_logic.json`** - Complex logic with OR, NOT, and IMPLIES operators
+
+**To test the extension:**
+
+1. Open any sample file from `examples/`
+2. Click the wave button or use `Ctrl+K, Ctrl+D`
+3. Use "Generate SVA" command to create SystemVerilog assertions
+
+## 🔧 Enhanced Logical Operators
+
+Enhanced syntax for assertion conditions:
+
+| Syntax | Description | Example |
+|--------|-------------|---------|
+| `$&(condition)$` | AND logic | `$&(enable)$` |
+| `$\|(condition)$` | OR logic | `$\|(ready)$` |
+| `$!(condition)$` | NOT logic | `$!(reset)$` |
+| `$->(condition)$` | IMPLIES logic | `$->(valid)$` |
+
+## 🔗 WaveDrom Edge Syntax
+
+Use WaveDrom edge syntax to define timing relationships:
+
+| Pattern | Description | Generated SVA |
+|---------|-------------|---------------|
+| `a->b` | Signal a precedes b | `a \|-> ##1 b` |
+| `a-\|>b` | Sharp timing constraint | `a \|-> ##[1:1] b` |
+| `a~>b` | Flexible timing | `a \|-> ##[1:$] b` |
+| `a<->b` | Bidirectional relationship | `(a \|-> b) and (b \|-> a)` |
+
+## 🚀 Installation
+
+### From VS Code Marketplace
+
+1. Open VS Code
+2. Go to Extensions (Ctrl+Shift+X)
+3. Search for "Waveform Render SVA Enhanced"
+4. Click Install
+
+### Manual Installation
+
+1. Download the `.vsix` file from [Releases](https://github.com/MameMame777/waveform-render-sva/releases)
+2. Run `code --install-extension waveform-render-sva-enhanced-*.vsix`
+
+## 🛠️ Development
+
+### Prerequisites
+
+- Node.js (>= 14.0.0)
+- npm or yarn
+- VS Code
+
+### Setup
+
+```bash
+git clone https://github.com/MameMame777/waveform-render-sva.git
+cd waveform-render-sva
+npm install
+npm run compile
+```
+
+### Build Extension
+
+```bash
+npm run vscode:prepublish
+```
+
+## 📋 Commands
+
+| Command | Keybinding | Description |
+|---------|------------|-------------|
+| `Waveform Render: Draw` | `Ctrl+K Ctrl+D` | Render waveform in new panel |
+| `Waveform Render: Toggle Live Preview` | `Ctrl+K Ctrl+L` | Enable/disable live preview |
+| `Waveform Render: Generate SVA` | `Ctrl+K Ctrl+S` | Generate SystemVerilog assertions |
+| `Waveform Render: Save as PNG` | - | Save waveform as PNG image |
+| `Waveform Render: Save as SVG` | - | Save waveform as SVG image |
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.txt) file for details.
+
+## 🙌 Acknowledgments
+
+- **Borja Penuelas** - Original [waveform-render-vscode](https://github.com/bmpenuelas/waveform-render-vscode) creator
+- **WaveDrom** - The timing diagram rendering engine
+- **SystemVerilog** - IEEE 1800 standard for hardware verification
+
+## 📊 Project Status
+
+- ✅ **Stable**: Core waveform rendering functionality
+- ✅ **Stable**: Basic SVA generation
+- 🚧 **Active Development**: Advanced SVA patterns and edge cases
+- 🔮 **Planned**: UVM integration and advanced verification features
