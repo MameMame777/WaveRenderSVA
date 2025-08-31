@@ -1,4 +1,12 @@
-# Waveform Render SVA Enhanced v0.30.0
+# Waveform ## 🎉 What's New in v0.30.1 - Marketplace Update
+
+- **🔄 Marketplace Synchronization**: Ensured proper display on VS Code Marketplace
+- **🆕 `<->` Stability Operator**: Generates `$stable() throughout` SystemVerilog syntax
+- **🆕 `<~>` Change Detection Operator**: Generates `$changed()` with timing constraints
+- **🛡️ Conditional Guards**: Support for `$|(condition)$` and `$&(condition)$` syntax
+- **📋 SystemVerilog LRM Compliance**: All generated SVA follows IEEE 1800 standard
+- **🧪 Comprehensive Testing**: 34 test cases with 100% success rate
+- **📖 Enhanced Documentation**: Complete test specifications and examplesVA Enhanced v0.30.1
 
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/MameMame777.waveform-render-sva-enhanced?style=flat-square&logo=visual-studio-code&label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)
 [![Visual Studio Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/MameMame777.waveform-render-sva-enhanced?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)
