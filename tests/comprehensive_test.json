@@ -1,0 +1,85 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p..........."},
+    {"name": "reset_n", "wave": "01.........."},
+    
+    {"name": "req", "wave": "01..0..1..0.", "node": ".a....f...."},
+    {"name": "ack", "wave": "0.1..0..1..0", "node": "..b.....g.."},
+    {"name": "grant", "wave": "0..1..0.....", "node": "...c......."},
+    {"name": "done", "wave": "0....1......", "node": ".....d....."},
+    {"name": "valid", "wave": "0.......1..0", "node": "........h.."},
+    
+    {"name": "data", "wave": "x=.==.=....x", "data": ["D1", "D2", "D3", "D4"], "node": "..e........"},
+    {"name": "addr", "wave": "x=====......", "data": ["A1"], "node": ".i........."},
+    {"name": "enable", "wave": "1...........", "node": ".l........."},
+    {"name": "mode", "wave": "0..1........", "node": "...j......."},
+    
+    {"name": "bus", "wave": "x=.=.=.=....", "data": ["00", "FF", "A5", "3C"]},
+    {"name": "state", "wave": "=.=.=.=.....", "data": ["IDLE", "REQ", "ACK", "DONE"]},
+    
+    {"name": "clk2", "wave": "p.p.p.p.p.p."},
+    {"name": "sync_sig", "wave": "0..1..0.....", "node": "...k......."}
+  ],
+  
+  "edge": [
+    "a~>b standard_req_ack",
+    "b~>c ack_to_grant", 
+    "c~>d grant_to_done",
+    "f-|>g req_fall_to_ack",
+    "g|->h ack_rise_to_valid",
+    
+    "a~>b time_constraint_2clk ##2",
+    "b~>c timing_range ##[1:3]",
+    "c-|d falling_edge_delay ##1",
+    
+    "a<~>b change_detection",
+    "e<->a data_stability_during_req", 
+    "i<->l addr_stable_when_enabled",
+    
+    "a<~>b $|(enable)$ conditional_change_with_enable",
+    "e<->a $&(enable)$ stability_gated_by_enable",
+    "f~>g $|(mode)$ mode_conditional_handshake",
+    "j<->k $&(reset_n)$ reset_conditional_stability",
+    
+    "a~>b $|(enable & mode)$ complex_and_condition",
+    "b~>c $|(enable | mode)$ complex_or_condition", 
+    "c<->d $&(enable & ~mode)$ inverted_condition",
+    "h<~>a $|(valid & enable & reset_n)$ multi_signal_guard",
+    
+    "a<->b bidirectional_stability",
+    "e<~>f bidirectional_change",
+    
+    "a<->a self_stability",
+    "b<~>b self_change_detection",
+    
+    "b-|>a reverse_handshake",
+    "d-|c reverse_completion",
+    
+    "a~>b primary_path",
+    "a~>c alternate_path", 
+    "a~>d completion_path",
+    
+    "a~>b~>c~>d full_chain",
+    
+    "a~>k cross_domain_sync",
+    
+    "a<~>b ##[0:2] $|(enable)$ timed_conditional_change",
+    "e<->i ##1 $&(mode)$ timed_conditional_stability",
+    
+    "a~>b~>a handshake_protocol",
+    "a~>b~>d~>a protocol_cycle"
+  ],
+  
+  "config": {
+    "skin": "default",
+    "hscale": 2
+  },
+  
+  "head": {
+    "text": "Comprehensive WaveDrom to SVA Test Suite"
+  },
+  
+  "foot": {
+    "text": "Testing all supported WaveDrom edge types and SVA generation patterns"
+  }
+}

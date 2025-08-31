@@ -142,6 +142,112 @@ describe('WaveformToSVAGenerator', () => {
 		});
 	});
 
+	describe('Issue #2: 安定性と変化検出アサーション', () => {
+		test('<-> オペレータによる安定性アサーション生成', () => {
+			const input = {
+				"signal": [
+					{"name": "data_sig", "wave": "x===x", "node": ".a"},
+					{"name": "enable_sig", "wave": "01..0", "node": ".b"}
+				],
+				"edge": ["a<->b"]
+			};
+      
+			const result = generator.generateSVA(JSON.stringify(input));
+			expect(result.success).toBe(true);
+			expect(result.properties.length).toBeGreaterThan(0);
+			
+			const stabilityAssertion = result.properties.find(p => p.includes('$stable'));
+			expect(stabilityAssertion).toBeDefined();
+			expect(stabilityAssertion).toContain('$stable(');
+			expect(stabilityAssertion).toContain('Stability assertion:');
+		});
+
+		test('<~> オペレータによる変化検出アサーション生成', () => {
+			const input = {
+				"signal": [
+					{"name": "clk_sig", "wave": "p....", "node": ".a"},
+					{"name": "data_sig", "wave": "x234x", "node": ".b"}
+				],
+				"edge": ["a<~>b"]
+			};
+      
+			const result = generator.generateSVA(JSON.stringify(input));
+			expect(result.success).toBe(true);
+			expect(result.properties.length).toBeGreaterThan(0);
+			
+			const changeAssertion = result.properties.find(p => p.includes('$changed'));
+			expect(changeAssertion).toBeDefined();
+			expect(changeAssertion).toContain('$changed(');
+			expect(changeAssertion).toContain('Change detection assertion:');
+		});
+
+		test('同一信号での <-> 安定性テスト', () => {
+			const input = {
+				"signal": [
+					{"name": "stable_sig", "wave": "0....", "node": ".a"}
+				],
+				"edge": ["a<->a"]
+			};
+      
+			const result = generator.generateSVA(JSON.stringify(input));
+			expect(result.success).toBe(true);
+			
+			const stabilityAssertion = result.properties.find(p => p.includes('$stable'));
+			expect(stabilityAssertion).toBeDefined();
+			expect(stabilityAssertion).toContain('$stable(stable_sig)');
+		});
+
+		test('同一信号での <~> 変化テスト', () => {
+			const input = {
+				"signal": [
+					{"name": "changing_sig", "wave": "0123.", "node": ".a"}
+				],
+				"edge": ["a<~>a"]
+			};
+      
+			const result = generator.generateSVA(JSON.stringify(input));
+			expect(result.success).toBe(true);
+			
+			const changeAssertion = result.properties.find(p => p.includes('$changed'));
+			expect(changeAssertion).toBeDefined();
+			expect(changeAssertion).toContain('$changed(changing_sig)');
+		});
+
+		test('条件付き <-> 安定性アサーション', () => {
+			const input = {
+				"signal": [
+					{"name": "data_bus", "wave": "x===x", "node": ".a"},
+					{"name": "valid", "wave": "01..0", "node": ".b"}
+				],
+				"edge": ["a<->b $&(enable)$"]
+			};
+      
+			const result = generator.generateSVA(JSON.stringify(input));
+			expect(result.success).toBe(true);
+			
+			const stabilityAssertion = result.properties.find(p => p.includes('$stable'));
+			expect(stabilityAssertion).toBeDefined();
+			expect(stabilityAssertion).toContain('&& (enable)');
+		});
+
+		test('条件付き <~> 変化検出アサーション', () => {
+			const input = {
+				"signal": [
+					{"name": "counter", "wave": "0123.", "node": ".a"},
+					{"name": "reset", "wave": "10...", "node": ".b"}
+				],
+				"edge": ["a<~>b $|(reset || overflow)$"]
+			};
+      
+			const result = generator.generateSVA(JSON.stringify(input));
+			expect(result.success).toBe(true);
+			
+			const changeAssertion = result.properties.find(p => p.includes('$changed'));
+			expect(changeAssertion).toBeDefined();
+			expect(changeAssertion).toContain('&& ((reset || overflow))');
+		});
+	});
+
 	describe('エラー処理', () => {
 		test('無効ノードのエラー処理', () => {
 			const input = {

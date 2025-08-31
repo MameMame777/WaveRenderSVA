@@ -1,4 +1,47 @@
-# Release Notes v0.29.0 - Code Optimization & Performance Enhancement
+## WaveRenderSVA Release Notes
+
+## v0.30.0 - Issue #2 Complete & Testing Suite
+
+### 🎉 Major Feature: Issue #2 Implementation Complete
+
+#### 🆕 New WaveDrom Operators
+
+- **`<->` Stability Operator**: Generates `$stable() throughout` SystemVerilog syntax
+- **`<~>` Change Detection Operator**: Generates `$changed()` with timing constraints
+- **Conditional Guards**: Support for `$|(condition)$` and `$&(condition)$` syntax
+- **SystemVerilog LRM Compliance**: All generated SVA follows IEEE 1800 standard
+
+#### 📊 Comprehensive Testing Suite
+
+- **34 Test Cases**: Complete coverage of all WaveDrom operators
+- **Automated Verification**: `tests/test_verification.js` with detailed reporting
+- **100% Success Rate**: All tests pass with zero compilation errors
+- **Performance Metrics**: Detailed statistics and operator coverage analysis
+
+#### 📖 Documentation Enhancement
+
+- **Unified Test Specification**: `tests/COMPREHENSIVE_TEST_SPECIFICATION.md`
+- **Complete JSON Specification**: Timing charts and detailed examples
+- **Updated README**: New testing section with execution guide
+- **Clean Project Structure**: All test files organized in `tests/` directory
+
+#### 🐛 Fixes & Improvements
+
+- **Corrected `throughout` Syntax**: Fixed SystemVerilog sequence syntax issues
+- **Enhanced Error Handling**: Better reverse causality and edge detection
+- **Path Corrections**: All file references updated for new structure
+- **Lint Compliance**: All Markdown files pass linting rules
+
+### 📈 Testing Results
+
+- **Properties Generated**: 34 SystemVerilog assertions
+- **Operator Support**: 5/5 WaveDrom operators (100% coverage)
+- **Warnings**: 13 (all expected, design-compliant)
+- **Errors**: 0 (complete success)
+
+---
+
+## v0.29.0 - Code Optimization & Performance Enhancement
 
 ## 🎯 Major Code Cleanup
 

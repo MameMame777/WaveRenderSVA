@@ -1,0 +1,35 @@
+{
+  "execution": {
+    "timestamp": "2025-08-31T13:42:56.337Z",
+    "success": true,
+    "totalSignals": 15,
+    "totalEdges": 34,
+    "nodeCount": 10
+  },
+  "statistics": {
+    "totalEdges": 34,
+    "sharpLines": 13,
+    "splines": 21,
+    "bidirectional": 8,
+    "conditional": 10,
+    "invalidEdges": 0
+  },
+  "results": {
+    "propertyCount": 34,
+    "warningCount": 13,
+    "errorCount": 0
+  },
+  "operatorSupport": {
+    "~>": true,
+    "-|>": true,
+    "|->": true,
+    "<->": true,
+    "<~>": true
+  },
+  "issue2Implementation": {
+    "stableThroughout": true,
+    "changedWithTiming": true,
+    "conditionalGuardOr": true,
+    "conditionalGuardAnd": true
+  }
+}

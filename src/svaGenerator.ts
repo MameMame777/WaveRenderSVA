@@ -222,11 +222,6 @@ export class WaveformToSVAGenerator {
 		// Parse conditions
 		const conditions = this.parseConditions(edgeInfo.comment || '');
 
-		// Handle bidirectional edges
-		if (edgeInfo.operator === '<->') {
-			return this.generateBidirectionalProperty(sourceNode, targetNode, timing, conditions, index);
-		}
-
 		return this.buildSVAProperty(edgeInfo, sourceNode, targetNode, timing, conditions, index);
 	}
 
@@ -473,6 +468,90 @@ export class WaveformToSVAGenerator {
 	}
 
 	/**
+	 * Adjust node event type based on edge operator (Issue #2)
+	 * <-> = stable, <~> = data_change
+	 */
+	private adjustNodeEventType(node: NodePosition, operator: string): NodePosition {
+		let newEventType = node.eventType;
+		
+		if (operator === '<->') {
+			newEventType = 'stable';
+		} else if (operator === '<~>') {
+			newEventType = 'data_change';
+		}
+		
+		// Return new node with adjusted event type
+		return {
+			...node,
+			eventType: newEventType
+		};
+	}
+
+	/**
+	 * Build SVA expression with throughout/within operators for Issue #2
+	 */
+	private buildSpecialSVAExpression(
+		sourceNode: NodePosition,
+		targetNode: NodePosition,
+		timing: string,
+		operator: string
+	): string {
+		const sourceEvent = this.getEventFunction(sourceNode);
+		const targetEvent = this.getEventFunction(targetNode);
+		
+		console.log(`[DEBUG] buildSpecialSVAExpression: operator=${operator}, sourceEvent=${sourceEvent}, targetEvent=${targetEvent}, timing=${timing}`);
+		
+		if (operator === '<->') {
+			// Use correct throughout syntax for stability
+			const sourceSignal = sourceNode.signal;
+			const targetSignal = targetNode.signal;
+			
+			if (sourceSignal === targetSignal) {
+				// Same signal: just check stability
+				const result = `$stable(${sourceSignal})`;
+				console.log(`[DEBUG] <-> same signal stability: ${result}`);
+				return result;
+			} else {
+				// Cross-signal: target signal should be stable throughout source signal stability period
+				// Pattern: $stable(data) throughout $stable(req) 
+				// This means: while source is stable, target must also be stable
+				const result = `$stable(${targetSignal}) throughout $stable(${sourceSignal})`;
+				console.log(`[DEBUG] <-> throughout pattern: ${result}`);
+				return result;
+			}
+		} else if (operator === '<~>') {
+			// Use standard SVA syntax for change detection
+			if (timing && timing !== '') {
+				// Extract timing range from timing string like "##[0:3]"
+				const timingMatch = timing.match(/##\[(\d+):(\d+)\]/);
+				if (timingMatch) {
+					const [, min, max] = timingMatch;
+					const result = `${sourceEvent} |-> ##[${min}:${max}] ${targetEvent}`;
+					console.log(`[DEBUG] <~> with timing range: ${result}`);
+					return result;
+				} else {
+					// Fallback to default range
+					const result = `${sourceEvent} |-> ##[0:10] ${targetEvent}`;
+					console.log(`[DEBUG] <~> with fallback range: ${result}`);
+					return result;
+				}
+			} else {
+				// Simple change detection with default range
+				const result = `${sourceEvent} |-> ##[1:10] ${targetEvent}`;
+				console.log(`[DEBUG] <~> default range: ${result}`);
+				return result;
+			}
+		}
+		
+		// Fallback to normal expression
+		const implication = this.getImplicationOperator(operator);
+		const timingStr = timing ? ` ${timing}` : '';
+		const result = `${sourceEvent} ${implication}${timingStr} ${targetEvent}`;
+		console.log(`[DEBUG] fallback: ${result}`);
+		return result;
+	}
+
+	/**
    * Build complete SVA property string - Enhanced version with logical operators
    */
 	private buildSVAProperty(
@@ -483,10 +562,21 @@ export class WaveformToSVAGenerator {
 		conditions: AssertionConditions,
 		index: number
 	): string {
-		const sourceEvent = this.getEventFunction(sourceNode);
-		const targetEvent = this.getEventFunction(targetNode);
-		const implication = this.getImplicationOperator(edgeInfo.operator);
-		const timingStr = timing ? ` ${timing}` : '';
+		// Issue #2: Override event types based on edge operator
+		const adjustedSourceNode = this.adjustNodeEventType(sourceNode, edgeInfo.operator);
+		const adjustedTargetNode = this.adjustNodeEventType(targetNode, edgeInfo.operator);
+		
+		// Issue #2: Use special SVA expressions for <-> and <~> with throughout/within
+		let mainExpression: string;
+		if (edgeInfo.operator === '<->' || edgeInfo.operator === '<~>') {
+			mainExpression = this.buildSpecialSVAExpression(adjustedSourceNode, adjustedTargetNode, timing, edgeInfo.operator);
+		} else {
+			const sourceEvent = this.getEventFunction(adjustedSourceNode);
+			const targetEvent = this.getEventFunction(adjustedTargetNode);
+			const implication = this.getImplicationOperator(edgeInfo.operator);
+			const timingStr = timing ? ` ${timing}` : '';
+			mainExpression = `${sourceEvent} ${implication}${timingStr} ${targetEvent}`;
+		}
     
 		// Enhanced: Check for reverse causality and warn appropriately
 		const timingDiff = targetNode.position - sourceNode.position;
@@ -500,16 +590,41 @@ export class WaveformToSVAGenerator {
 			: ' disable iff (!rst_n)';
     
 		// Enhanced: Build target expression with logical operators
-		let targetWithConditions = this.buildLogicalExpression(targetEvent, conditions);
+		let finalExpression: string;
+		if (edgeInfo.operator === '<->' || edgeInfo.operator === '<~>') {
+			// For special operators, build the expression first, then apply conditions as guard
+			const baseExpression = mainExpression;
+			
+			// Apply conditions as guard conditions at the front
+			if (conditions.and.length > 0) {
+				const guardExpr = conditions.and.join(' && ');
+				finalExpression = `${guardExpr} |-> (${baseExpression})`;
+			} else if (conditions.or.length > 0) {
+				const guardExpr = conditions.or.join(' || ');
+				finalExpression = `(${guardExpr}) |-> (${baseExpression})`;
+			} else {
+				finalExpression = baseExpression;
+			}
+		} else {
+			// For normal operators, apply conditions to target event only
+			const targetEvent = this.getEventFunction(adjustedTargetNode);
+			const targetWithConditions = this.buildLogicalExpression(targetEvent, conditions);
+			// Rebuild the full expression
+			const sourceEvent = this.getEventFunction(adjustedSourceNode);
+			const implication = this.getImplicationOperator(edgeInfo.operator);
+			const timingStr = timing ? ` ${timing}` : '';
+			finalExpression = `${sourceEvent} ${implication}${timingStr} ${targetWithConditions}`;
+		}
 
 		const propertyName = `edge_${edgeInfo.source}_to_${edgeInfo.target}_${index}`;
     
 		// Enhanced: More informative error messages
-		const errorMsg = `[SVA] Timing violation: ${sourceNode.signal}(${edgeInfo.source}) -> ${targetNode.signal}(${edgeInfo.target}) failed at cycle %0d with operator '${edgeInfo.operator}' (expected delay: ${timingStr || '0'})`;
+		const timingStr = timing ? timing : '0';
+		const errorMsg = `[SVA] Timing violation: ${sourceNode.signal}(${edgeInfo.source}) -> ${targetNode.signal}(${edgeInfo.target}) failed at cycle %0d with operator '${edgeInfo.operator}' (expected delay: ${timingStr})`;
     
 		return `property ${propertyName};
   @(posedge clk)${disableIff}
-  ${sourceEvent} ${implication}${timingStr} ${targetWithConditions};
+  ${finalExpression};
 endproperty
 ${propertyName}_a: assert property(${propertyName})
   else $error("${errorMsg}", ($time / $realtime));`;
@@ -617,37 +732,6 @@ ${propertyName}_a: assert property(${propertyName})
 	/**
    * Generate bidirectional property (A <-> B becomes A->B and B->A)
    */
-	private generateBidirectionalProperty(
-		sourceNode: NodePosition,
-		targetNode: NodePosition,
-		timing: string,
-		conditions: AssertionConditions,
-		index: number
-	): string {
-		const forwardProp = this.buildSVAProperty(
-			{ source: sourceNode.name, target: targetNode.name, operator: '->', isSharpLine: true },
-			sourceNode,
-			targetNode,
-			timing,
-			conditions,
-			index
-		);
-
-		const reverseProp = this.buildSVAProperty(
-			{ source: targetNode.name, target: sourceNode.name, operator: '->', isSharpLine: true },
-			targetNode,
-			sourceNode,
-			timing,
-			conditions,
-			index + 1000 // Offset to avoid naming conflicts
-		);
-
-		return `// Bidirectional relationship: ${sourceNode.name} <-> ${targetNode.name}
-${forwardProp}
-
-${reverseProp}`;
-	}
-
 	/**
    * Generate default assertion for error recovery
    */

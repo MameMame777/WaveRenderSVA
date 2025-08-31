@@ -2,6 +2,55 @@
 
 ## 本プロジェクト(WaveRenderSVA)の現在実装仕様 - SystemVerilog LRM準拠版
 
+## Issue #2 対応 - 安定性と変化検出オペレータ
+
+### 新規追加オペレータ
+
+| WaveDrom演算子 | 意味 | SystemVerilog関数 | 説明 |
+|-------------|-----|-----------------|-----|
+| `<->` | 安定性チェック | `$stable(signal)` | 信号が変化せず安定していることを検証 |
+| `<~>` | 変化検出 | `$changed(signal)` | 信号が変化したことを検証 |
+
+### 実装例
+
+#### 安定性アサーション (`<->`)
+```json
+{
+  "signal": [
+    {"name": "data_bus", "wave": "x===x", "node": ".a"},
+    {"name": "enable", "wave": "01..0", "node": ".b"}
+  ],
+  "edge": ["a<->b"]
+}
+```
+
+生成されるSystemVerilog：
+```systemverilog
+property edge_a_to_b_0;
+  @(posedge clk) disable iff (!rst_n)
+  $stable(data_bus) |=> $stable(enable);
+endproperty
+```
+
+#### 変化検出アサーション (`<~>`)
+```json
+{
+  "signal": [
+    {"name": "counter", "wave": "0123.", "node": ".a"},
+    {"name": "clock", "wave": "p....", "node": ".b"}
+  ],
+  "edge": ["a<~>b"]
+}
+```
+
+生成されるSystemVerilog：
+```systemverilog
+property edge_a_to_b_0;
+  @(posedge clk) disable iff (!rst_n)
+  $changed(counter) |=> ##[0:3] $changed(clock);
+endproperty
+```
+
 ## 用語定義 (Definitions)
 
 ### SystemVerilog LRM準拠用語

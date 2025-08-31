@@ -321,6 +321,28 @@ npm run vscode:prepublish
 | `Waveform Render: Save as PNG` | - | Save waveform as PNG image |
 | `Waveform Render: Save as SVG` | - | Save waveform as SVG image |
 
+## ⚡ Testing
+
+The extension includes a comprehensive test suite to ensure reliability and correctness:
+
+```bash
+# Run the final verification test
+cd tests
+node test_verification.js
+```
+
+### Test Coverage
+
+- **34 test cases** covering all WaveDrom syntax elements
+- **5/5 operators** fully supported including Issue #2 operators
+- **Zero compilation errors** - all generated SVA compiles correctly
+- **Complete Issue #2 implementation** - `<->` and `<~>` operators working
+
+For detailed test documentation, see:
+
+- [`tests/README.md`](tests/README.md) - Test execution guide
+- [`tests/COMPREHENSIVE_TEST_SPECIFICATION.md`](tests/COMPREHENSIVE_TEST_SPECIFICATION.md) - Complete test specifications with JSON definitions, timing charts, and results analysis
+
 ## 🤝 Contributing
 
 1. Fork the repository
