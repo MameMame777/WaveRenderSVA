@@ -35,13 +35,13 @@
     "Visualization",
     "Other"
   ],
-  "homepage": "https://github.com/MameMame777/waveform-render-sva",
+  "homepage": "https://github.com/MameMame777/WaveRenderSVA",
   "bugs": {
-    "url": "https://github.com/MameMame777/waveform-render-sva/issues"
+    "url": "https://github.com/MameMame777/WaveRenderSVA/issues"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MameMame777/waveform-render-sva.git"
+    "url": "https://github.com/MameMame777/WaveRenderSVA.git"
   },
   "activationEvents": [
     "onWebviewPanel:waveformRender"

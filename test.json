@@ -1,0 +1,10 @@
+{
+  "signal": [
+    { "name": "req",   "wave": "01..0.", "node": ".a..b." },
+    { "name": "ack",   "wave": "0.1.0.", "node": "..c.d." },
+    { "name": "data",  "wave": "x.==.x", "node": "..e.f." }
+  ],
+  "edge": [
+    "a~>c", "c->e", "b-|>d"
+  ]
+}

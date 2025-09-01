@@ -142,12 +142,14 @@ export class WaveformToSVAGenerator {
 				const char = signal.node[i];
 				if (char !== '.' && char !== '') {
 					const eventType = this.determineEventType(signal.wave, i);
-					this.nodePositions.set(char, {
+					const nodePos = {
 						name: char,
 						position: i,
 						signal: signal.name,
 						eventType
-					});
+					};
+					
+					this.nodePositions.set(char, nodePos);
 				}
 			}
 		});
@@ -160,34 +162,57 @@ export class WaveformToSVAGenerator {
 	private determineEventType(wave: string, position: number): 'rising_edge' | 'falling_edge' | 'data_change' | 'stable' | 'default' {
 		if (position === 0 || position >= wave.length) return 'default';
     
-		const current = wave[position];
-		const previous = wave[position - 1];
+		// Get actual values at current and previous positions (resolve dots)
+		const currentValue = this.getActualWaveValue(wave, position);
+		const previousValue = this.getActualWaveValue(wave, position - 1);
 
 		// Rising edge: 0->1, l->h, L->H
-		if ((previous === '0' && current === '1') ||
-        (previous === 'l' && current === 'h') ||
-        (previous === 'L' && current === 'H')) {
+		if ((previousValue === '0' && currentValue === '1') ||
+        (previousValue === 'l' && currentValue === 'h') ||
+        (previousValue === 'L' && currentValue === 'H')) {
 			return 'rising_edge';
 		}
 
 		// Falling edge: 1->0, h->l, H->L
-		if ((previous === '1' && current === '0') ||
-        (previous === 'h' && current === 'l') ||
-        (previous === 'H' && current === 'L')) {
+		if ((previousValue === '1' && currentValue === '0') ||
+        (previousValue === 'h' && currentValue === 'l') ||
+        (previousValue === 'H' && currentValue === 'L')) {
 			return 'falling_edge';
 		}
 
 		// Data change: x->= or =->x or =->= (different data)
-		if (current === '=' || previous === '=') {
+		if (currentValue === '=' || previousValue === '=') {
 			return 'data_change';
 		}
 
 		// Stable: same value
-		if (current === previous) {
+		if (currentValue === previousValue) {
 			return 'stable';
 		}
 
 		return 'default';
+	}
+
+	/**
+	 * Get actual wave value at position, resolving dots to previous values
+	 */
+	private getActualWaveValue(wave: string, position: number): string {
+		if (position < 0 || position >= wave.length) return '';
+		
+		const char = wave[position];
+		
+		// If it's a dot, find the last non-dot value
+		if (char === '.') {
+			for (let i = position - 1; i >= 0; i--) {
+				const prevChar = wave[i];
+				if (prevChar !== '.') {
+					return prevChar;
+				}
+			}
+			return '0'; // Default if no previous value found
+		}
+		
+		return char;
 	}
 
 	/**

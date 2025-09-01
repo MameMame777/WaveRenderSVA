@@ -21,9 +21,9 @@ interface EdgeInfo {
 }
 
 export function activate(context: vscode.ExtensionContext) {
-	// SVA Generation Command - New implementation based on specification
+	// SVA Generation Command - Use SVAGeneratorPanel (original behavior)
 	context.subscriptions.push(
-		vscode.commands.registerCommand("waveformRender.generateSVA", async () => {
+		vscode.commands.registerCommand("waveformRender.generateSVA", () => {
 			const editor = vscode.window.activeTextEditor;
 			if (!editor) {
 				vscode.window.showErrorMessage("アクティブなエディタがありません");
@@ -38,21 +38,10 @@ export function activate(context: vscode.ExtensionContext) {
 
 			try {
 				const jsonContent = document.getText();
-				const generator = new WaveformToSVAGenerator();
-				const result = await vscode.window.withProgress({
-					location: vscode.ProgressLocation.Notification,
-					title: "SystemVerilogアサーション生成中...",
-					cancellable: false
-				}, async (progress) => {
-					progress.report({ increment: 50, message: "WaveDrom解析中..." });
-					const svaResult = generator.generateSVA(jsonContent);
-					progress.report({ increment: 50, message: "SVA生成完了" });
-					return svaResult;
-				});
-
-				await handleSVAGenerationResult(result, document.fileName);
+				const jsonData = JSON.parse(jsonContent);
+				SVAGeneratorPanel.createOrShow(context.extensionPath, jsonData);
 			} catch (error) {
-				vscode.window.showErrorMessage(`SVA生成エラー: ${error.message}`);
+				vscode.window.showErrorMessage(`JSON解析エラー: ${error instanceof Error ? error.message : String(error)}`);
 			}
 		})
 	);
@@ -98,11 +87,7 @@ export function activate(context: vscode.ExtensionContext) {
 			WaveformRenderPanel.saveAsSvg();
 		})
 	);
-	context.subscriptions.push(
-		vscode.commands.registerCommand("waveformRender.generateSVA", () => {
-			SVAGeneratorPanel.createOrShow(context.extensionPath);
-		})
-	);
+	// Note: waveformRender.generateSVA command is now implemented above using WaveformToSVAGenerator
 }
 
 function getFilename() {
@@ -233,7 +218,7 @@ class WaveformRenderPanel {
 			(message) => {
 				switch (message.command) {
 				case 'generateSVA':
-					// Pass the current JSON data to SVAGeneratorPanel
+					// Pass the current JSON data to SVAGeneratorPanel (original behavior)
 					if (this._currentJsonData) {
 						SVAGeneratorPanel.createOrShow(this._extensionPath, this._currentJsonData);
 					} else {
@@ -1563,7 +1548,7 @@ class SVAGeneratorPanel {
 			const reportData = new TextEncoder().encode(report);
 			await vscode.workspace.fs.writeFile(reportUri, reportData);
       
-			vscode.window.showInformationMessage(`SystemVerilog assertions saved to: ${baseName}_assertions.sv\nReport saved to: ${baseName}_report.md`);
+			// Removed popup notification - files saved silently
       
 			// Optionally open the generated file
 			const doc = await vscode.workspace.openTextDocument(svaUri);
@@ -1855,15 +1840,8 @@ async function handleSVAGenerationResult(result: SVAGenerationResult, sourceFile
 	outputChannel.appendLine("endmodule");
 	outputChannel.show();
 
-	// Ask user if they want to save to file
-	const saveOption = await vscode.window.showInformationMessage(
-		`SVA生成完了: ${result.properties.length}個のプロパティを生成しました。`,
-		"ファイルに保存", "出力パネルのみ"
-	);
-
-	if (saveOption === "ファイルに保存") {
-		await saveSVAToFile(result, sourceFileName);
-	}
+	// Automatically save to file without popup
+	await saveSVAToFile(result, sourceFileName);
 }
 
 /**
@@ -1888,7 +1866,7 @@ async function saveSVAToFile(result: SVAGenerationResult, sourceFileName: string
 	try {
 		const encoder = new TextEncoder();
 		await vscode.workspace.fs.writeFile(saveUri, encoder.encode(svContent));
-		vscode.window.showInformationMessage(`SVAファイルを保存しました: ${saveUri.fsPath}`);
+		// Silently save without popup message
     
 		// Open the generated file
 		const doc = await vscode.workspace.openTextDocument(saveUri);

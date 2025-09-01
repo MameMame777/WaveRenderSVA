@@ -1,418 +1,236 @@
-# Waveform ## 🎉 What's New in v0.30.1 - Marketplace Update
-
-- **🔄 Marketplace Synchronization**: Ensured proper display on VS Code Marketplace
-- **🆕 `<->` Stability Operator**: Generates `$stable() throughout` SystemVerilog syntax
-- **🆕 `<~>` Change Detection Operator**: Generates `$changed()` with timing constraints
-- **🛡️ Conditional Guards**: Support for `$|(condition)$` and `$&(condition)$` syntax
-- **📋 SystemVerilog LRM Compliance**: All generated SVA follows IEEE 1800 standard
-- **🧪 Comprehensive Testing**: 34 test cases with 100% success rate
-- **📖 Enhanced Documentation**: Complete test specifications and examplesVA Enhanced v0.30.1
+# WaveRenderSVA Enhanced - WaveDrom to SystemVerilog Assertion Generator
 
 [![Visual Studio Marketplace Version](https://img.shields.io/visual-studio-marketplace/v/MameMame777.waveform-render-sva-enhanced?style=flat-square&logo=visual-studio-code&label=VS%20Code%20Marketplace)](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)
 [![Visual Studio Marketplace Installs](https://img.shields.io/visual-studio-marketplace/i/MameMame777.waveform-render-sva-enhanced?style=flat-square)](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)
-[![GitHub Release](https://img.shields.io/github/v/release/MameMame777/WaveRenderSVA?style=flat-square&logo=github)](https://github.com/MameMame777/WaveRenderSVA/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
+
+**Now available on [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)!**
 
 A VS Code extension that renders waveforms with [WaveDrom](https://github.com/wavedrom/wavedrom) and automatically generates SystemVerilog Assertions (SVA) from JSON waveform descriptions for hardware verification.
 
-**🌟 Now available on [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced)!**
+## What This Extension Does
 
-## 🎉 What's New in v0.30.0 - Issue #2 Complete
+WaveRenderSVA Enhanced is a VS Code extension that **automatically generates SystemVerilog Assertions from WaveDrom JSON files**.
 
-- **🆕 `<->` Stability Operator**: Generates `$stable() throughout` SystemVerilog syntax
-- **🆕 `<~>` Change Detection Operator**: Generates `$changed()` with timing constraints
-- **�️ Conditional Guards**: Support for `$|(condition)$` and `$&(condition)$` syntax
-- **� SystemVerilog LRM Compliance**: All generated SVA follows IEEE 1800 standard
-- **🧪 Comprehensive Testing**: 34 test cases with 100% success rate
-- **📖 Enhanced Documentation**: Complete test specifications and examples
+### Key Features
+- **WaveDrom Timing Diagram Display** - Generate visual waveform diagrams from JSON
+- **Automatic SystemVerilog Assertion Generation** - Create SVA properties from timing relationships
+- **Assertion File Export** - Save generated SVA as .sv files
+- **Precise Timing Calculation** - Generate accurate delay constraints from node positions
+- **Rich Operator Support** - Support for spline(~>), sharp(-|>), immediate(->) and more
 
-## 🙏 Attribution
+## Sample Input and Generated Assertions
 
-This project is a **fork and enhancement** of the excellent [waveform-render-vscode](https://github.com/bmpenuelas/waveform-render-vscode) by **Borja Penuelas (bmpenuelas)**. We extend our gratitude for the solid foundation that made these enhancements possible.
-
-## ✨ Features
-
-- 🌊 **Render timing diagrams** from WaveDrom JSON *(original feature)*
-- ⚡ **Generate SystemVerilog Assertions** automatically *(enhanced)*
-- 💾 **Save generated assertions** as .sv files *(new)*
-- 🔄 **Live preview mode** for waveforms *(original feature)*
-- ✨ **Advanced SVA patterns**: variable latency, sequences, prohibitions *(new)*
-- 🎯 **Enhanced logical operators**: AND, OR, NOT, IMPLIES support *(new)*
-- 🔧 **WaveDrom edge syntax** for timing relationships *(new)*
-- **🆕 Issue #2 Operators**: `<->` stability and `<~>` change detection *(v0.30.0)*
-- **🧪 Comprehensive Testing**: 34 test cases with automated verification *(v0.30.0)*
-
-## 🚀 Quick Start
-
-### 1. Render Waveforms
-
-📄 Open a .JSON file containing a WaveDrom waveform:
-
-```json
-{ 
-  "signal": [
-    { "name": "clk",         "wave": "p.....|..." },
-    { "name": "Data",        "wave": "x.345x|=.x", "data": ["head", "body", "tail", "data"] },
-    { "name": "Request",     "wave": "0.1..0|1.0" },
-    {},
-    { "name": "Acknowledge", "wave": "1.....|01." }
-  ]
-}
-```
-
-**Methods to render:**
-
-- ➡️ Click the wave button at the top-right corner
-- 🎹 Press `Ctrl+K` followed by `Ctrl+D`
-- 🔃 Press `Ctrl+K` followed by `Ctrl+L` for live preview
-
-### 2. Generate SystemVerilog Assertions
-
-🔧 Press `Ctrl+K` followed by `Ctrl+S` or use Command Palette: `Waveform Render: Generate SystemVerilog Assertions`
-
-**Generated assertions include:**
-
-- Clock signal patterns and frequency checks
-- Data transition assertions with timing constraints
-- Signal stability and setup/hold properties
-- Request/acknowledge handshake patterns
-- Cross-signal timing relationships
-
-## 📋 Example Output
-
-```systemverilog
-// SystemVerilog Assertions generated from WaveDrom JSON
-// Generated: 2025-08-31T10:30:00.000Z
-
-module waveform_assertions;
-  
-  // Clock Signal Assertions
-  property clk_clock_period_p;
-    disable iff (!rst_n)
-    @(posedge clk) ##1 (clk == 1'b0) ##1 (clk == 1'b1);
-  endproperty
-  clk_clock_period_a: assert property(clk_clock_period_p);
-
-  // Data Signal Assertions  
-  property Data_transition_p;
-    @(posedge clk) $changed(Data) |-> ##1 $stable(Data);
-  endproperty
-  Data_transition_a: assert property(Data_transition_p);
-
-  // Request-Acknowledge Handshake
-  property req_ack_handshake_p;
-    @(posedge clk) $rose(Request) |-> ##[1:3] $rose(Acknowledge);
-  endproperty
-  req_ack_handshake_a: assert property(req_ack_handshake_p);
-
-endmodule
-```
-
-## 💾 Saving Waveforms
-
-- You can save the rendered waveform as PNG or SVG by right-clicking the waveform and selecting your preferred format
-- Or click the `📋copy to clipboard` button in the waveform panel to copy the image to your clipboard
-- Or use VSCode commands to save as PNG/SVG:
-  - `Waveform Render: Copy Save as PNG` (`waveformRender.saveAsPng`)
-  - `Waveform Render: Copy Save as SVG` (`waveformRender.saveAsSvg`)
-
-## 📝 WaveDrom Syntax
-
-You can find the complete WaveDrom syntax [in the WaveDrom schema docs](https://github.com/wavedrom/schema/blob/master/WaveJSON.md).
-
-## 📁 Sample Files
-
-The `examples/` directory contains ready-to-use sample files:
-
-- **`basic_handshake.json`** - Simple request-acknowledge protocol with AND conditions
-- **`advanced_logic.json`** - Complex logic with OR, NOT, and IMPLIES operators
-
-**To test the extension:**
-
-1. Open any sample file from `examples/`
-2. Click the wave button or use `Ctrl+K, Ctrl+D`
-3. Use "Generate SVA" command to create SystemVerilog assertions
-
-## 🔧 Enhanced Logical Operators
-
-Enhanced syntax for assertion conditions including **Issue #2 operators**:
-
-| Syntax | Description | Example | Status |
-|--------|-------------|---------|--------|
-| `$&(condition)$` | AND logic | `$&(enable)$` | ✅ Stable |
-| `$\|(condition)$` | OR logic | `$\|(ready)$` | ✅ Stable |
-| `$!(condition)$` | NOT logic | `$!(reset)$` | ✅ Stable |
-| `$->(condition)$` | IMPLIES logic | `$->(valid)$` | ✅ Stable |
-| **`<->`** | **Stability operator** | **`<-> $stable(signal)`** | **🆕 v0.30.0** |
-| **`<~>`** | **Change detection** | **`<~> $changed(signal)`** | **🆕 v0.30.0** |
-
-## 📚 WaveDrom to SVA Mapping Reference
-
-### SystemVerilog LRM Compliance
-
-This extension generates IEEE 1800-2017 compliant SystemVerilog assertions with the following key principles:
-
-#### Implication Types
-
-- **Overlapped (`|->`)**: Evaluation starts in the same cycle when antecedent is true
-- **Non-overlapped (`|=>`)**: Evaluation starts in the next cycle after antecedent is true
-
-#### Timing Calculation
-
-- **N**: Position difference between nodes in WaveDrom `node` string
-- **Calculation**: `N = targetNode.position - sourceNode.position`
-
-#### Edge Categories
-
-**Sharp Lines (Precise Timing)**:
-
-```json
-{
-  "edge": [
-    "a->b",     // a |=> ##N b
-    "a-|>b",    // a |=> ##1 b  
-    "a<->b",    // Bidirectional: (a |=> b) and (b |=> a)
-    "a|->b"     // a |-> ##N b
-  ]
-}
-```
-
-**Splines (Flexible Timing)**:
-
-```json
-{
-  "edge": [
-    "a~>b",     // a |-> ##[0:$] b
-    "a-~>b",    // a |=> ##[1:$] b
-    "a<~>b"     // a |=> ##[0:$] b
-  ]
-}
-```
-
-### Complete Mapping Table
-
-| WaveDrom Pattern | SystemVerilog Assertion | Type | Description |
-|------------------|-------------------------|------|-------------|
-| `A->B` | `A \|=> ##N B` | Sharp | Precise N-cycle delay |
-| `A-\|>B` | `A \|=> ##1 B` | Sharp | Next cycle constraint |
-| `A\|->B` | `A \|-> ##N B` | Sharp | Overlapped implication |
-| `A<->B` | `(A \|=> B) and (B \|=> A)` | Sharp | Bidirectional |
-| `A~>B` | `A \|-> ##[0:$] B` | Spline | Eventually (overlapped) |
-| `A-~>B` | `A \|=> ##[1:$] B` | Spline | Eventually (non-overlapped) |
-| `A<~>B` | `A \|=> ##[0:$] B` | Spline | Flexible bidirectional |
-
-#### Conditional Assertions
-
-Use `$...$` syntax for conditions:
-
-```json
-{
-  "edge": [
-    "a->b $iff (enable)$",
-    "c~>d $disable_iff (!rst_n)$"
-  ]
-}
-```
-
-#### Node Events
-
-| Node Type | SystemVerilog Function | Description |
-|-----------|----------------------|-------------|
-| `rising_edge` | `$rose(signal)` | Rising edge detection |
-| `falling_edge` | `$fell(signal)` | Falling edge detection |
-| `data_change` | `$changed(signal)` | Data change detection |
-| `stable` | `$stable(signal)` | Signal stability |
-
-### Advanced Features
-
-#### Error Handling
-
-- **Invalid nodes**: Generates warnings and fallback assertions
-- **Timing conflicts**: Reports negative timing differences
-- **Syntax errors**: Graceful degradation with informative messages
-
-#### Performance Optimization
-
-- **Bounded ranges**: Converts `##[0:$]` to `##[0:100]` for simulation efficiency
-- **Clock domain optimization**: Automatic clock signal detection
-- **Reset handling**: Standard `disable iff (!rst_n)` pattern
-
-### Complete Example
-
-**Input WaveDrom JSON**:
-
+### Input: WaveDrom JSON
 ```json
 {
   "signal": [
-    {"name": "clk", "wave": "p......"},
-    {"name": "req", "wave": "01....0", "node": ".a....."},
-    {"name": "ack", "wave": "0.1..0.", "node": "..b...."},
-    {"name": "data", "wave": "x=..=.x", "data": ["A", "B"], "node": ".c..d.."}
+    { "name": "req",   "wave": "01..0.", "node": ".a..b." },
+    { "name": "ack",   "wave": "0.1.0.", "node": "..c.d." },
+    { "name": "data",  "wave": "x.==.x", "node": "..e.f." }
   ],
   "edge": [
-    "a->b $iff (enable)$ req_ack_handshake",
-    "c~>d data_stability"
+    "a~>c", "c->e", "b-|>d"
   ]
 }
 ```
 
-**Generated SystemVerilog**:
-
+### Output: Generated SystemVerilog Assertions
 ```systemverilog
-module waveform_assertions(
+// SystemVerilog Assertions generated from WaveDrom
+// Generated on 2025-09-01T14:30:00.000Z
+// Generator: WaveformToSVAGenerator v2.0 (Enhanced)
+// Total properties: 3
+// Statistics: Sharp=2, Splines=1, Bidirectional=0
+
+module generated_assertions(
   input logic clk,
   input logic rst_n,
-  input logic enable,
   input logic req,
   input logic ack,
-  input logic [7:0] data
+  input logic data
 );
 
-  // Request-acknowledge handshake with enable condition
-  property req_ack_handshake_p;
-    @(posedge clk) disable iff (!rst_n)
-    $rose(req) |=> $rose(ack) iff (enable);
-  endproperty
-  req_ack_handshake_a: assert property(req_ack_handshake_p)
-    else $error("[SVA] Handshake violation: req -> ack at time %0t", $time);
+  // ========================================
+  // Generated Properties
+  // ========================================
 
-  // Data stability check  
-  property data_stability_p;
+  // Flexible connection: a~>c
+  property edge_a_to_c_0;
     @(posedge clk) disable iff (!rst_n)
-    $changed(data) |-> ##[0:$] $stable(data);
+    $rose(req) |=> ##[0:1] $rose(ack);
   endproperty
-  data_stability_a: assert property(data_stability_p)
-    else $error("[SVA] Data stability violation at time %0t", $time);
+  edge_a_to_c_0_a: assert property(edge_a_to_c_0)
+    else $error("[SVA] Timing violation: req(a) -> ack(c) failed at cycle %0d with operator '~>' (expected delay: ##[0:1])", ($time / $realtime));
+
+  // Immediate connection: c->e  
+  property edge_c_to_e_1;
+    @(posedge clk) disable iff (!rst_n)
+    $rose(ack) |=> $changed(data);
+  endproperty
+  edge_c_to_e_1_a: assert property(edge_c_to_e_1)
+    else $error("[SVA] Timing violation: ack(c) -> data(e) failed at cycle %0d with operator '->' (expected delay: 0)", ($time / $realtime));
+
+  // Strict direction: b-|>d
+  property edge_b_to_d_2;
+    @(posedge clk) disable iff (!rst_n)
+    $fell(req) |=> $fell(ack);
+  endproperty
+  edge_b_to_d_2_a: assert property(edge_b_to_d_2)
+    else $error("[SVA] Timing violation: req(b) -> ack(d) failed at cycle %0d with operator '-|>' (expected delay: 0)", ($time / $realtime));
 
 endmodule
 ```
 
-### 📸 Screenshots
+## Screenshots
 
-![Waveform Render SVA Enhanced Demo](media/demo_2.png)
+### 1. WaveDrom Rendering and Live Editing
 
-Waveform rendering with automatic SVA generation showing embedded signal detection
+![WaveDrom Rendering](media/demo_0.png)
 
-For detailed implementation specifications, see [`WAVEDROM_SVA_MAPPING.md`](WAVEDROM_SVA_MAPPING.md).
+### 2. SystemVerilog Assertion Generation
 
-## 🚀 Installation
+![SVA Generation](media/readme0.png)
 
-### From VS Code Marketplace (Recommended)
+### 3. Generated Assertion File
 
-1. Open VS Code
-2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "**Waveform Render SVA Enhanced**"
-4. Click **Install**
+![Generated Assertions](media/readme1.png)
 
-Or install directly from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=MameMame777.waveform-render-sva-enhanced).
+## How to Use
 
-### Command Line Installation
+### 1. Installation
 
-```bash
-code --install-extension MameMame777.waveform-render-sva-enhanced
+Install "WaveRenderSVA Enhanced" from VS Code Marketplace
+
+### 2. Open WaveDrom JSON File
+
+```json
+{
+  "signal": [
+    { "name": "clk",    "wave": "p......." },
+    { "name": "enable", "wave": "01....0.", "node": ".a....b." },
+    { "name": "data",   "wave": "x.===.x.", "node": "..c.d.e." }
+  ],
+  "edge": ["a~>c", "c->d"]
+}
 ```
 
-### Manual Installation
+### 3. Execute Commands
 
-1. Download the `.vsix` file from [GitHub Releases](https://github.com/MameMame777/waveform-render-sva/releases)
+**Ctrl+Shift+P** → Search **"WaveDrom"**
+
+#### Available Commands
+
+- **WaveDrom: Preview** - Display waveform diagram
+- **WaveDrom: Generate SVA** - Generate SystemVerilog Assertions
+- **WaveDrom: Export SVA** - Save as .sv file
+
+### 4. Operator Usage
+
+| Operator | Meaning | Generated Pattern | Purpose |
+|----------|---------|-------------------|---------|
+| `~>` | Spline (Flexible) | `##[0:n]` | Variable delay tolerance |
+| `-\|>` | Sharp (Exact) | `##n` | Fixed delay requirement |
+| `->` | Simple (Basic) | `##n` or immediate | Basic causal relationship |
+| `\|->` | Immediate | immediate | Same cycle |
+| `<->` | Stability | `$stable() throughout` | Maintain stable state |
+| `<~>` | Change | `$changed()` with timing | Change detection |
+
+### 5. Advanced Features
+
+#### Conditional Guards
+
+```json
+{
+  "signal": [
+    { "name": "req", "wave": "01.0", "node": ".a.b" },
+    { "name": "ack", "wave": "0.10", "node": "..c." }
+  ],
+  "edge": ["a~>$|(enable)$c"]
+}
+```
+
+## Release History
+
+### v0.30.1 (2025-09-01) - Issue #3 Implementation
+
+- ✅ **Precise Timing Calculation**: Accurate delay constraint generation from node positions
+- ✅ **f~>g → ##[0:1]**: Precise timing generation between adjacent nodes  
+- ✅ **Operator Optimization**: Optimal pattern generation for each operator characteristic
+- ✅ **Comprehensive Testing**: 42 test cases with 100% success rate
+
+### v0.30.0 (2024) - Issue #2 Complete
+
+- **`<->` Stability Operator**: `$stable() throughout` syntax support
+- **`<~>` Change Detection**: `$changed()` with timing constraints  
+- **Conditional Guards**: `$|(condition)$` and `$&(condition)$` support
+- **IEEE 1800 LRM Compliance**: All generated SVA conforms to standard specification
+
+### v0.29.0 - Enhanced SVA Generation
+
+- SystemVerilog Assertion automatic generation feature added
+- WaveDrom edge syntax support
+- Assertion save functionality
+
+### v0.28.0 - Core Features
+
+- WaveDrom waveform display functionality
+- Live preview mode
+- JSON format support
+
+---
+
+**Attribution**: This project is a fork and enhancement of [waveform-render-vscode](https://github.com/bmpenuelas/waveform-render-vscode) by Borja Penuelas (bmpenuelas).
+
+**Support**: [GitHub Issues](https://github.com/MameMame777/WaveRenderSVA/issues)
+
+**Technical Specification**: [Documentation](tests/doc/Issue3_Integrated_Complete_Documentation.md)
+
+## Installation
+
+1. Download the `.vsix` file from [GitHub Releases](https://github.com/MameMame777/WaveRenderSVA/releases)
 2. Run `code --install-extension waveform-render-sva-enhanced-*.vsix`
 
-## 🛠️ Development
-
-### Prerequisites
-
-- Node.js (>= 14.0.0)
-- npm or yarn
-- VS Code
-
-### Setup
+## Development
 
 ```bash
-git clone https://github.com/MameMame777/waveform-render-sva.git
-cd waveform-render-sva
+git clone https://github.com/MameMame777/WaveRenderSVA.git
+cd WaveRenderSVA
 npm install
 npm run compile
 ```
 
-### Build Extension
-
-```bash
-npm run vscode:prepublish
-```
-
-## 📋 Commands
+## Commands
 
 | Command | Keybinding | Description |
 |---------|------------|-------------|
-| `Waveform Render: Draw` | `Ctrl+K Ctrl+D` | Render waveform in new panel |
-| `Waveform Render: Toggle Live Preview` | `Ctrl+K Ctrl+L` | Enable/disable live preview |
-| `Waveform Render: Generate SVA` | `Ctrl+K Ctrl+S` | Generate SystemVerilog assertions |
-| `Waveform Render: Save as PNG` | - | Save waveform as PNG image |
-| `Waveform Render: Save as SVG` | - | Save waveform as SVG image |
+| Waveform Render | `Ctrl+K, Ctrl+D` | Render JSON as waveform |
+| Generate SVA | `Ctrl+K, Ctrl+S` | Generate SystemVerilog assertions |
+| Live Preview | `Ctrl+K, Ctrl+L` | Toggle live preview |
 
-## ⚡ Testing
-
-The extension includes a comprehensive test suite to ensure reliability and correctness:
+## Testing
 
 ```bash
-# Run the final verification test
 cd tests
 node test_verification.js
 ```
 
-### Test Coverage
+**Test Results**: 42 test cases, 100% success rate with comprehensive Issue #3 timing verification.
 
-- **34 test cases** covering all WaveDrom syntax elements
-- **5/5 operators** fully supported including **Issue #2 operators (`<->`, `<~>`)**
-- **Zero compilation errors** - all generated SVA compiles correctly
-- **100% success rate** - comprehensive verification with automated testing
-- **Complete Issue #2 implementation** - stability and change detection working
+## License
 
-**Test Results Summary:**
-
-- ✅ Properties Generated: 34 SystemVerilog assertions
-- ✅ Operator Support: 5/5 WaveDrom operators (100% coverage)
-- ✅ Warnings: 13 (all expected, design-compliant)
-- ✅ Errors: 0 (complete success)
-
-For detailed test documentation, see:
-
-- [`tests/README.md`](tests/README.md) - Test execution guide
-- [`tests/COMPREHENSIVE_TEST_SPECIFICATION.md`](tests/COMPREHENSIVE_TEST_SPECIFICATION.md) - Complete test specifications with JSON definitions, timing charts, and results analysis
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE.txt](LICENSE.txt) file for details.
-
-## 🙌 Acknowledgments
-
-- **Borja Penuelas** - Original [waveform-render-vscode](https://github.com/bmpenuelas/waveform-render-vscode) creator
-- **WaveDrom** - The timing diagram rendering engine
-- **SystemVerilog** - IEEE 1800 standard for hardware verification
-
-## 📊 Project Status
-
-- ✅ **Stable**: Core waveform rendering functionality
-- ✅ **Stable**: Basic SVA generation
-- ✅ **Complete**: Issue #2 operators (`<->`, `<~>`) implementation
-- ✅ **Complete**: Comprehensive test suite (34 test cases)
-- ✅ **Published**: Available on VS Code Marketplace
-- 🚧 **Active Development**: Advanced SVA patterns and edge cases
-- 🔮 **Planned**: UVM integration and advanced verification features
+MIT License - see [LICENSE.txt](LICENSE.txt) for details.
 
 ---
 
-## 📈 Version History
+## Version History
 
 | Version | Release Date | Key Features |
+|---------|--------------|--------------|
+| v0.30.1 | 2025-09-01 | Issue #3 Implementation - Precise timing calculation |
+| v0.30.0 | 2024 | Issue #2 Complete - Stability operators and guards |
+| v0.29.0 | 2024 | Enhanced SVA Generation |
+| v0.28.0 | 2024 | Core Features - WaveDrom display |
 |---------|--------------|--------------|
 | **v0.30.0** | 2025-08-31 | **Issue #2 Complete**: `<->` & `<~>` operators, 34 test cases |
 | v0.29.0 | 2025-08-30 | Performance optimization (31.6% code reduction) |
