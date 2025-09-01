@@ -1,0 +1,182 @@
+{
+  "execution": {
+    "timestamp": "2025-09-01T21:16:32.620Z",
+    "testSuite": "WaveRenderSVA Integrated Test Suite v1.0",
+    "environment": "Node.js v24.4.1"
+  },
+  "summary": {
+    "totalTests": 6,
+    "passedTests": 6,
+    "failedTests": 0,
+    "totalProperties": 52,
+    "totalWarnings": 19,
+    "totalErrors": 0
+  },
+  "tests": {
+    "comprehensive_functionality": {
+      "description": "Complete functionality test with all operators and features",
+      "success": true,
+      "properties": 34,
+      "warnings": 19,
+      "errors": 0,
+      "analysis": {
+        "passed": true,
+        "details": {},
+        "implicationOperators": {
+          "overlapped": 11,
+          "nonOverlapped": 19
+        }
+      },
+      "timestamp": "2025-09-01T21:16:32.633Z"
+    },
+    "issue3_node_timing": {
+      "description": "Issue #3: Node-based timing calculation verification",
+      "success": true,
+      "properties": 8,
+      "warnings": 0,
+      "errors": 0,
+      "analysis": {
+        "passed": true,
+        "details": {},
+        "implicationOperators": {
+          "overlapped": 0,
+          "nonOverlapped": 8
+        }
+      },
+      "timestamp": "2025-09-01T21:16:32.634Z"
+    },
+    "advanced_logic_patterns": {
+      "description": "Advanced logic patterns and complex timing relationships",
+      "success": true,
+      "properties": 3,
+      "warnings": 0,
+      "errors": 0,
+      "analysis": {
+        "passed": true,
+        "details": {},
+        "implicationOperators": {
+          "overlapped": 2,
+          "nonOverlapped": 2
+        }
+      },
+      "timestamp": "2025-09-01T21:16:32.635Z"
+    },
+    "same_position_nodes": {
+      "description": "Same-position nodes should use overlapped implication (|->)",
+      "success": true,
+      "properties": 2,
+      "warnings": 0,
+      "errors": 0,
+      "analysis": {
+        "passed": true,
+        "details": {},
+        "implicationOperators": {
+          "overlapped": 2,
+          "nonOverlapped": 0
+        }
+      },
+      "timestamp": "2025-09-01T21:16:32.635Z"
+    },
+    "different_position_nodes": {
+      "description": "Different-position nodes should use non-overlapped implication (|=>)",
+      "success": true,
+      "properties": 2,
+      "warnings": 0,
+      "errors": 0,
+      "analysis": {
+        "passed": true,
+        "details": {},
+        "implicationOperators": {
+          "overlapped": 1,
+          "nonOverlapped": 1
+        }
+      },
+      "timestamp": "2025-09-01T21:16:32.636Z"
+    },
+    "mixed_timing_test": {
+      "description": "Mixed timing test: a~>c(|=>), c->e(|->), b-|>d(|->)",
+      "success": true,
+      "properties": 3,
+      "warnings": 0,
+      "errors": 0,
+      "analysis": {
+        "passed": true,
+        "details": {},
+        "implicationOperators": {
+          "overlapped": 2,
+          "nonOverlapped": 1
+        }
+      },
+      "timestamp": "2025-09-01T21:16:32.637Z"
+    }
+  },
+  "regression": {
+    "timingAwareOperators": {
+      "description": "Verifies timing-aware implication operator selection (|-> vs |=>)",
+      "results": {
+        "samePositionCorrect": true,
+        "differentPositionCorrect": false,
+        "mixedTestCorrect": true,
+        "edgeAnalysis": [
+          {
+            "edge": "a~>c",
+            "source": "a",
+            "target": "c",
+            "operator": "~>",
+            "sourcePos": 1,
+            "targetPos": 2,
+            "timingDiff": 1,
+            "expectedOperator": "|=>"
+          },
+          {
+            "edge": "c->e",
+            "source": "c",
+            "target": "e",
+            "operator": "->",
+            "sourcePos": 2,
+            "targetPos": 2,
+            "timingDiff": 0,
+            "expectedOperator": "|->"
+          },
+          {
+            "edge": "b-|>d",
+            "source": "b",
+            "target": "d",
+            "operator": "-|>",
+            "sourcePos": 4,
+            "targetPos": 4,
+            "timingDiff": 0,
+            "expectedOperator": "|->"
+          }
+        ]
+      }
+    }
+  },
+  "operatorSupport": {
+    "~>": {
+      "supported": true,
+      "propertiesCount": 0
+    },
+    "-|>": {
+      "supported": true,
+      "propertiesCount": 0
+    },
+    "->": {
+      "supported": true,
+      "propertiesCount": 0
+    },
+    "|->": {
+      "supported": true,
+      "propertiesCount": 0
+    },
+    "<->": {
+      "supported": true,
+      "propertiesCount": 0
+    },
+    "<~>": {
+      "supported": true,
+      "propertiesCount": 0
+    }
+  },
+  "issueImplementations": {}
+}

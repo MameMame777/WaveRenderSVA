@@ -13,6 +13,7 @@ A VS Code extension that renders waveforms with [WaveDrom](https://github.com/wa
 WaveRenderSVA Enhanced is a VS Code extension that **automatically generates SystemVerilog Assertions from WaveDrom JSON files**.
 
 ### Key Features
+
 - **WaveDrom Timing Diagram Display** - Generate visual waveform diagrams from JSON
 - **Automatic SystemVerilog Assertion Generation** - Create SVA properties from timing relationships
 - **Assertion File Export** - Save generated SVA as .sv files
@@ -21,7 +22,10 @@ WaveRenderSVA Enhanced is a VS Code extension that **automatically generates Sys
 
 ## Sample Input and Generated Assertions
 
-### Input: WaveDrom JSON
+### Example 1: Basic Timing Relationships
+
+#### Input: WaveDrom JSON
+
 ```json
 {
   "signal": [
@@ -34,52 +38,142 @@ WaveRenderSVA Enhanced is a VS Code extension that **automatically generates Sys
   ]
 }
 ```
+![WaveDrom Rendering](media/readme3.png)
+#### Output: Generated SystemVerilog Assertions
 
-### Output: Generated SystemVerilog Assertions
 ```systemverilog
 // SystemVerilog Assertions generated from WaveDrom
-// Generated on 2025-09-01T14:30:00.000Z
 // Generator: WaveformToSVAGenerator v2.0 (Enhanced)
-// Total properties: 3
-// Statistics: Sharp=2, Splines=1, Bidirectional=0
 
-module generated_assertions(
-  input logic clk,
-  input logic rst_n,
-  input logic req,
-  input logic ack,
-  input logic data
-);
+// Flexible connection: a~>c
+property edge_a_to_c_0;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(req) |=> ##[0:1] $rose(ack);
+endproperty
 
-  // ========================================
-  // Generated Properties
-  // ========================================
+// Immediate connection: c->e  
+property edge_c_to_e_1;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(ack) |-> $changed(data);
+endproperty
 
-  // Flexible connection: a~>c
-  property edge_a_to_c_0;
-    @(posedge clk) disable iff (!rst_n)
-    $rose(req) |=> ##[0:1] $rose(ack);
-  endproperty
-  edge_a_to_c_0_a: assert property(edge_a_to_c_0)
-    else $error("[SVA] Timing violation: req(a) -> ack(c) failed at cycle %0d with operator '~>' (expected delay: ##[0:1])", ($time / $realtime));
+// Strict direction: b-|>d
+property edge_b_to_d_2;
+  @(posedge clk) disable iff (!rst_n)
+  $fell(req) |-> $fell(ack);
+endproperty
+```
 
-  // Immediate connection: c->e  
-  property edge_c_to_e_1;
-    @(posedge clk) disable iff (!rst_n)
-    $rose(ack) |=> $changed(data);
-  endproperty
-  edge_c_to_e_1_a: assert property(edge_c_to_e_1)
-    else $error("[SVA] Timing violation: ack(c) -> data(e) failed at cycle %0d with operator '->' (expected delay: 0)", ($time / $realtime));
+### Example 2: Flexible Timing
 
-  // Strict direction: b-|>d
-  property edge_b_to_d_2;
-    @(posedge clk) disable iff (!rst_n)
-    $fell(req) |=> $fell(ack);
-  endproperty
-  edge_b_to_d_2_a: assert property(edge_b_to_d_2)
-    else $error("[SVA] Timing violation: req(b) -> ack(d) failed at cycle %0d with operator '-|>' (expected delay: 0)", ($time / $realtime));
+#### Input: Variable Delay Tolerance
 
-endmodule
+```json
+{
+  "signal": [
+    { "name": "req", "wave": "01......", "node": ".a......" },
+    { "name": "gnt", "wave": "0..1....", "node": "...b...." },
+    { "name": "data", "wave": "x....=..", "node": ".....c.." },
+    { "name": "ack", "wave": "0......1", "node": ".......d" }
+  ],
+  "edge": ["a~>b", "b~>c", "a~>d"]
+}
+```
+![WaveDrom Rendering](media/readme4.png)
+
+#### Output: Flexible Timing Constraints
+
+```systemverilog
+// Request to grant (flexible 0-2 cycles)
+property edge_a_to_b_0;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(req) |=> ##[0:2] $rose(gnt);
+endproperty
+
+// Grant to data (flexible 0-2 cycles)
+property edge_b_to_c_1;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(gnt) |=> ##[0:2] $changed(data);
+endproperty
+
+// Request to ack (flexible 0-6 cycles)
+property edge_a_to_d_2;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(req) |=> ##[0:6] $rose(ack);
+endproperty
+```
+
+### Example 3: Immediate Timing 
+
+#### Input: Same-Cycle Relationships
+
+```json
+{
+  "signal": [
+    { "name": "enable", "wave": "01.0....", "node": ".a.b...." },
+    { "name": "ready",  "wave": "01.0....", "node": ".c.d...." },
+    { "name": "valid",  "wave": "0.10....", "node": "..ef...." },
+    { "name": "start",  "wave": "0..1.0..", "node": "...gh..." }
+  ],
+  "edge": ["a->c", "c->e", "f->g", "g->h"]
+}
+```
+
+![WaveDrom Rendering](media/readme5.png)
+
+#### Output: Immediate Response Assertions
+
+```systemverilog
+// Enable to ready (same cycle)
+property edge_a_to_c_0;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(enable) |-> $rose(ready);
+endproperty
+
+// Ready to valid (next cycle)
+property edge_c_to_e_1;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(ready) |=> ##1 $rose(valid);
+endproperty
+
+// Valid fall to start rise (same cycle)
+property edge_f_to_g_2;
+  @(posedge clk) disable iff (!rst_n)
+  $fell(valid) |-> $rose(start);
+endproperty
+```
+
+### Example 4: Exact Timing 
+
+#### Input: Fixed Delay Requirements
+
+```json
+{
+  "signal": [
+    { "name": "trigger", "wave": "01.....", "node": ".a....." },
+    { "name": "response", "wave": "0...1..", "node": "....b.." },
+    { "name": "timeout", "wave": "0.....1", "node": "......c" }
+  ],
+  "edge": ["a-|>b", "a-|>c"]
+}
+```
+
+![WaveDrom Rendering](media/readme6.png)
+
+#### Output: Exact Timing Assertions
+
+```systemverilog
+// Trigger to response (exactly 3 cycles)
+property edge_a_to_b_0;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(trigger) |=> ##3 $rose(response);
+endproperty
+
+// Trigger to timeout (exactly 5 cycles)
+property edge_a_to_c_1;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(trigger) |=> ##5 $rose(timeout);
+endproperty
 ```
 
 ## Screenshots

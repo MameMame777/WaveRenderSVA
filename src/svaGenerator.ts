@@ -588,7 +588,11 @@ export class WaveformToSVAGenerator {
 		} else {
 			const sourceEvent = this.getEventFunction(adjustedSourceNode);
 			const targetEvent = this.getEventFunction(adjustedTargetNode);
-			const implication = this.getImplicationOperator(edgeInfo.operator);
+			
+			// Enhanced: Use timing-aware implication operator selection
+			const timingDiff = targetNode.position - sourceNode.position;
+			const implication = this.getTimingAwareImplicationOperator(edgeInfo.operator, timingDiff);
+			
 			const timingStr = timing ? ` ${timing}` : '';
 			mainExpression = `${sourceEvent} ${implication}${timingStr} ${targetEvent}`;
 		}
@@ -626,7 +630,11 @@ export class WaveformToSVAGenerator {
 			const targetWithConditions = this.buildLogicalExpression(targetEvent, conditions);
 			// Rebuild the full expression
 			const sourceEvent = this.getEventFunction(adjustedSourceNode);
-			const implication = this.getImplicationOperator(edgeInfo.operator);
+			
+			// Enhanced: Use timing-aware implication operator selection
+			const timingDiff = targetNode.position - sourceNode.position;
+			const implication = this.getTimingAwareImplicationOperator(edgeInfo.operator, timingDiff);
+			
 			const timingStr = timing ? ` ${timing}` : '';
 			finalExpression = `${sourceEvent} ${implication}${timingStr} ${targetWithConditions}`;
 		}
@@ -742,6 +750,43 @@ ${propertyName}_a: assert property(${propertyName})
 			this.warnings.push(`Unsupported operator: ${operator}, using default |=>`);
 			return '|=>';
 		}
+	}
+
+	/**
+	 * Enhanced implication operator selection based on timing difference
+	 * Fixes same-position node issues by using overlapped implication (|->) for zero timing difference
+	 */
+	private getTimingAwareImplicationOperator(operator: string, timingDiff: number): string {
+		// For same position nodes (timingDiff === 0), use overlapped implication
+		if (timingDiff === 0) {
+			// Same cycle events should use overlapped implication regardless of operator
+			switch (operator) {
+			case '->':
+			case '-|>':
+			case '|=>':
+			case '-|->':
+			case '-|-':
+			case '-|':
+			case '-':
+			case '~>':
+			case '<~>':
+			case '~->':
+			case '-~>':
+			case '-~':
+			case '~-':
+			case '~':
+				return '|->';  // overlapped for same cycle
+			case '|->':
+				return '|->';  // already overlapped
+			case '+':
+				return '&&';   // combinational
+			default:
+				return '|->';  // default to overlapped for same cycle
+			}
+		}
+		
+		// For different position nodes, use the original operator mapping
+		return this.getImplicationOperator(operator);
 	}
 
 	/**
