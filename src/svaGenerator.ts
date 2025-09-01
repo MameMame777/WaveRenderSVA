@@ -300,7 +300,7 @@ export class WaveformToSVAGenerator {
 
 	/**
    * Calculate enhanced timing constraint
-   * Based on specification with improved flexibility for real-world use
+   * Issue #3: Use precise node positions instead of fixed ranges
    */
 	private calculateTiming(sourceNode: NodePosition, targetNode: NodePosition, operator: string): string {
 		const timingDiff = targetNode.position - sourceNode.position;
@@ -308,32 +308,36 @@ export class WaveformToSVAGenerator {
 		// Handle reverse direction edges with better warnings
 		if (timingDiff < 0) {
 			this.warnings.push(`Reverse edge detected: ${sourceNode.name}->${targetNode.name}, time diff=${timingDiff} cycles - specification review required`);
-			// For reverse edges, use absolute timing but mark as potentially problematic
-			return `##${Math.abs(timingDiff)}`;
+			this.warnings.push(`Reverse causality detected: ${sourceNode.name}->${targetNode.name} may be opposite of normal protocol direction. Specification review recommended.`);
+			// For reverse edges, use absolute timing
+			const absTiming = Math.abs(timingDiff);
+			return absTiming === 0 ? '' : `##${absTiming}`;
 		}
     
-		// Sharp Lines: exact timing with some tolerance for real implementations
-		if (this.isSharpOperator(operator)) {
-			if (timingDiff === 0) {
-				return '';  // Same cycle
-			} else if (timingDiff === 1) {
-				return '##1';  // Next cycle exactly
-			} else {
-				// For longer delays, allow some tolerance (±1 cycle) for real designs
-				const minDelay = Math.max(1, timingDiff - 1);
-				const maxDelay = timingDiff + 1;
-				return `##[${minDelay}:${maxDelay}]`;
-			}
-		}
-    
-		// Splines: flexible timing with realistic bounds
+		// Use precise timing based on actual node positions and operator type
 		if (timingDiff === 0) {
-			return '##[0:3]';  // Eventually within 3 cycles (more realistic than unbounded)
+			// Same clock cycle - immediate response
+			return '';
+		}
+    
+		// Handle different operators according to WAVEDROM_SVA_MAPPING.md
+		if (operator.includes('~>')) {
+			// Spline operator: flexible range from 0 to actual timing difference
+			// This allows for any timing within the specified range
+			return `##[0:${timingDiff}]`;
+		} else if (operator.includes('|->')) {
+			// Sharp immediate implication: same cycle
+			return '';
+		} else if (operator.includes('-|>') || operator.includes('|=>')) {
+			// Sharp next-cycle operators: exact timing
+			return timingDiff === 1 ? '##1' : `##${timingDiff}`;
+		} else if (operator.includes('->')) {
+			// Simple arrow: immediate implication for same cycle, otherwise exact timing
+			return timingDiff === 0 ? '' : `##${timingDiff}`;
 		} else {
-			// Use the actual timing as a guideline with flexible bounds
-			const minDelay = Math.max(0, timingDiff - 1);
-			const maxDelay = timingDiff + 2;  // Allow some extra cycles for flexible timing
-			return `##[${minDelay}:${maxDelay}]`;
+			// Default behavior: flexible range with small tolerance
+			const maxDelay = Math.max(1, timingDiff);
+			return `##[0:${maxDelay}]`;
 		}
 	}
 
@@ -499,8 +503,6 @@ export class WaveformToSVAGenerator {
 		const sourceEvent = this.getEventFunction(sourceNode);
 		const targetEvent = this.getEventFunction(targetNode);
 		
-		console.log(`[DEBUG] buildSpecialSVAExpression: operator=${operator}, sourceEvent=${sourceEvent}, targetEvent=${targetEvent}, timing=${timing}`);
-		
 		if (operator === '<->') {
 			// Use correct throughout syntax for stability
 			const sourceSignal = sourceNode.signal;
@@ -508,16 +510,12 @@ export class WaveformToSVAGenerator {
 			
 			if (sourceSignal === targetSignal) {
 				// Same signal: just check stability
-				const result = `$stable(${sourceSignal})`;
-				console.log(`[DEBUG] <-> same signal stability: ${result}`);
-				return result;
+				return `$stable(${sourceSignal})`;
 			} else {
 				// Cross-signal: target signal should be stable throughout source signal stability period
 				// Pattern: $stable(data) throughout $stable(req) 
 				// This means: while source is stable, target must also be stable
-				const result = `$stable(${targetSignal}) throughout $stable(${sourceSignal})`;
-				console.log(`[DEBUG] <-> throughout pattern: ${result}`);
-				return result;
+				return `$stable(${targetSignal}) throughout $stable(${sourceSignal})`;
 			}
 		} else if (operator === '<~>') {
 			// Use standard SVA syntax for change detection
@@ -526,29 +524,21 @@ export class WaveformToSVAGenerator {
 				const timingMatch = timing.match(/##\[(\d+):(\d+)\]/);
 				if (timingMatch) {
 					const [, min, max] = timingMatch;
-					const result = `${sourceEvent} |-> ##[${min}:${max}] ${targetEvent}`;
-					console.log(`[DEBUG] <~> with timing range: ${result}`);
-					return result;
+					return `${sourceEvent} |-> ##[${min}:${max}] ${targetEvent}`;
 				} else {
 					// Fallback to default range
-					const result = `${sourceEvent} |-> ##[0:10] ${targetEvent}`;
-					console.log(`[DEBUG] <~> with fallback range: ${result}`);
-					return result;
+					return `${sourceEvent} |-> ##[0:10] ${targetEvent}`;
 				}
 			} else {
 				// Simple change detection with default range
-				const result = `${sourceEvent} |-> ##[1:10] ${targetEvent}`;
-				console.log(`[DEBUG] <~> default range: ${result}`);
-				return result;
+				return `${sourceEvent} |-> ##[1:10] ${targetEvent}`;
 			}
 		}
 		
 		// Fallback to normal expression
 		const implication = this.getImplicationOperator(operator);
 		const timingStr = timing ? ` ${timing}` : '';
-		const result = `${sourceEvent} ${implication}${timingStr} ${targetEvent}`;
-		console.log(`[DEBUG] fallback: ${result}`);
-		return result;
+		return `${sourceEvent} ${implication}${timingStr} ${targetEvent}`;
 	}
 
 	/**

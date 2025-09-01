@@ -1,0 +1,27 @@
+{
+  "signal": [
+    {"name": "clk", "wave": "p.......", "node": ".abcdefg"},
+    {"name": "enable", "wave": "01......", "node": ".h......"},
+    {"name": "data", "wave": "x.=.=...", "node": "..ijk..."},
+    {"name": "valid", "wave": "0..1.0..", "node": "...lmn.."},
+    {"name": "ready", "wave": "0...10..", "node": "....op.."},
+    
+    {"name": "test_sig1", "wave": "01..0...", "node": ".q......"},
+    {"name": "test_sig2", "wave": "0.1.....", "node": "..r....."},
+    {"name": "test_sig3", "wave": "0...1...", "node": "....s..."},
+    {"name": "test_sig4", "wave": "0.....1.", "node": "......t."}
+  ],
+  "edge": [
+    "h~>i enable_to_data_spline ##[0:1]",
+    "i->l data_to_valid_immediate ##0",
+    "l-|>m valid_to_valid_sharp ##1",
+    "m~>n valid_multi_spline ##[0:1]",
+    "h~>s enable_to_test3_long ##[0:3]",
+    "q->r adjacent_immediate ##0",
+    "q~>s spline_range_2 ##[0:2]",
+    "r-|>t sharp_exact_4 ##4"
+  ],
+  "config": {
+    "hscale": 1
+  }
+}

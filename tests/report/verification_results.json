@@ -1,6 +1,6 @@
 {
   "execution": {
-    "timestamp": "2025-08-31T13:42:56.337Z",
+    "timestamp": "2025-09-01T13:27:12.602Z",
     "success": true,
     "totalSignals": 15,
     "totalEdges": 34,
@@ -16,7 +16,7 @@
   },
   "results": {
     "propertyCount": 34,
-    "warningCount": 13,
+    "warningCount": 19,
     "errorCount": 0
   },
   "operatorSupport": {

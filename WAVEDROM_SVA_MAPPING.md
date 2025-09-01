@@ -11,6 +11,99 @@
 | `<->` | 安定性チェック | `$stable(signal)` | 信号が変化せず安定していることを検証 |
 | `<~>` | 変化検出 | `$changed(signal)` | 信号が変化したことを検証 |
 
+## Issue #3 対応 - ノード位置ベースの精密タイミング計算
+
+### タイミング計算仕様
+
+WaveDromのノード位置に基づいて、正確なタイミング制約を生成します。
+
+#### ノード位置の計算方法
+```json
+{"name": "enable", "wave": "01....", "node": ".f...."}  // f: 位置1
+{"name": "data", "wave": "x.=.=.", "node": "..ghij"}    // g: 位置2
+```
+
+- **ノード位置**: 0-indexedで文字位置を計算
+- **タイミング差**: `targetPosition - sourcePosition`
+- **オペレータ別処理**: エッジタイプに応じた適切なタイミング制約生成
+
+#### オペレータ別タイミング計算ルール
+
+| オペレータ | タイミング差 | 生成パターン | 説明 |
+|-----------|-------------|-------------|------|
+| `~>` (スプライン) | 0 | `` | 即時応答 |
+| `~>` (スプライン) | n | `##[0:n]` | 0からnクロックの柔軟な範囲 |
+| `->` (矢印) | 0 | `` | 即時含意 |
+| `->` (矢印) | n | `##n` | 正確にnクロック後 |
+| `\|->` (即時含意) | any | `` | 常に即時 |
+| `-\|>`, `\|=>` (シャープ) | n | `##n` | 正確にnクロック後 |
+
+### 実装例
+
+#### スプライン演算子による柔軟な範囲指定
+```json
+{
+  "signal": [
+    {"name": "enable", "wave": "01....", "node": ".f...."},
+    {"name": "data", "wave": "x.=.=.", "node": "..ghij"}
+  ],
+  "edge": ["f~>g enable_to_data"]
+}
+```
+
+**ノード位置分析:**
+- enable信号のfノード: 位置1
+- data信号のgノード: 位置2
+- タイミング差: 2 - 1 = 1クロック
+
+**生成されるSystemVerilog:**
+```systemverilog
+property edge_f_to_g_0;
+  @(posedge clk) disable iff (!rst_n)
+  $rose(enable) |=> ##[0:1] $changed(data);
+endproperty
+```
+
+#### 即時含意による同一サイクル処理
+```json
+{
+  "edge": ["g->k data_to_valid"]
+}
+```
+
+**ノード位置分析:**
+- data信号のgノード: 位置2
+- valid信号のkノード: 位置2
+- タイミング差: 2 - 2 = 0クロック
+
+**生成されるSystemVerilog:**
+```systemverilog
+property edge_g_to_k_1;
+  @(posedge clk) disable iff (!rst_n)
+  $changed(data) |-> valid;
+endproperty
+```
+
+#### シャープ演算子による正確なタイミング
+```json
+{
+  "edge": ["k-|>m valid_cleanup"]
+}
+```
+
+**ノード位置分析:**
+- valid信号のkノード: 位置2
+- cleanup信号のmノード: 位置4
+- タイミング差: 4 - 2 = 2クロック
+
+**生成されるSystemVerilog:**
+```systemverilog
+property edge_k_to_m_2;
+  @(posedge clk) disable iff (!rst_n)
+  $fell(valid) |=> ##2 cleanup;
+endproperty
+```
+
 ### 実装例
 
 #### 安定性アサーション (`<->`)
